@@ -156,15 +156,24 @@ def startup_event():
 def seed_data():
     db = SessionLocal()
     try:
-        if db.query(Product).count() > 0:
-            return
-
         import hashlib
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
             admin = User(username="admin", password_hash=hashlib.sha256("admin123".encode()).hexdigest(), role="admin")
             db.add(admin)
             db.commit()
+
+        if db.query(Product).count() > 0:
+            first = db.query(Product).first()
+            if first and first.part_no:
+                return
+
+        db.query(StockEntry).delete()
+        db.query(Stock).delete()
+        db.query(Pricing).delete()
+        db.query(Sale).delete()
+        db.query(Product).delete()
+        db.commit()
 
         products = [
             # Manhole Cover - Grey
