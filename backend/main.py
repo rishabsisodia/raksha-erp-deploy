@@ -165,45 +165,71 @@ def seed_data():
             db.add(admin)
             db.commit()
 
-        categories = ["Manhole Cover", "Gully Cover", "Frames", "Gratings", "Accessories"]
-        colors = ["Grey", "White"]
-        hsn_codes = {"Manhole Cover": "6914", "Gully Cover": "6914", "Frames": "6914", "Gratings": "6914", "Accessories": "6914"}
-
-        load_rating_sizes = {
-            "5 Ton": {
-                "square": ["10x10", "12x12", "15x15", "18x18", "21x21", "24x24", "26x26", "28x28", "30x30", "36x36"],
-                "rectangle": ["12x18", "12x24", "18x24"]
-            },
-            "10 Ton": {
-                "square": ["18x18", "24x24", "28x28", "30x30", "42x42"],
-                "rectangle": []
-            },
-            "12.5 Ton": {
-                "square": ["18x18", "24x24", "28x28", "30x30", "42x42"],
-                "rectangle": []
-            },
-            "25 Ton": {
-                "square": ["24x24", "26x26", "28x28", "30x30", "36x36"],
-                "rectangle": []
-            },
-            "40 Ton": {
-                "square": ["36x36", "42x42"],
-                "rectangle": []
-            }
-        }
+        products = [
+            # Manhole Cover - Grey
+            {"part_no": "FRP01101-GRY", "name": "FRP Manhole Cover 10 X 10 Grey", "category": "Manhole Cover", "size": "10x10", "color": "Grey"},
+            {"part_no": "FRP01103-GRY", "name": "FRP Manhole Cover 12 X 12 Grey", "category": "Manhole Cover", "size": "12x12", "color": "Grey"},
+            {"part_no": "FRP01106-GRY", "name": "FRP Manhole Cover 15 X 15 Grey", "category": "Manhole Cover", "size": "15x15", "color": "Grey"},
+            {"part_no": "FRP01109-GRY", "name": "FRP Manhole Cover 18 X 18 Grey", "category": "Manhole Cover", "size": "18x18", "color": "Grey"},
+            {"part_no": "FRP01112-GRY", "name": "FRP Manhole Cover 21 X 21 Grey", "category": "Manhole Cover", "size": "21x21", "color": "Grey"},
+            {"part_no": "FRP01115-GRY", "name": "FRP Manhole Cover 24 X 24 Grey", "category": "Manhole Cover", "size": "24x24", "color": "Grey"},
+            {"part_no": "FRP01117-GRY", "name": "FRP Manhole Cover 26 X 26 Grey", "category": "Manhole Cover", "size": "26x26", "color": "Grey"},
+            {"part_no": "FRP01119-GRY", "name": "FRP Manhole Cover 28 X 28 Grey", "category": "Manhole Cover", "size": "28x28", "color": "Grey"},
+            {"part_no": "FRP01121-GRY", "name": "FRP Manhole Cover 30 X 30 Grey", "category": "Manhole Cover", "size": "30x30", "color": "Grey"},
+            {"part_no": "FRP01127-GRY", "name": "FRP Manhole Cover 36 X 36 Grey", "category": "Manhole Cover", "size": "36x36", "color": "Grey"},
+            {"part_no": "FRP04106-GRY", "name": "FRP Manhole Cover 12 X 18 Grey", "category": "Manhole Cover", "size": "12x18", "color": "Grey"},
+            {"part_no": "FRP04112-GRY", "name": "FRP Manhole Cover 12 X 24 Grey", "category": "Manhole Cover", "size": "12x24", "color": "Grey"},
+            {"part_no": "FRP10106-GRY", "name": "FRP Manhole Cover 18 X 24 Grey", "category": "Manhole Cover", "size": "18x24", "color": "Grey"},
+            # Manhole Cover - White
+            {"part_no": "FRP01101-WH", "name": "FRP Manhole Cover 10 X 10 White", "category": "Manhole Cover", "size": "10x10", "color": "White"},
+            {"part_no": "FRP01103-WH", "name": "FRP Manhole Cover 12 X 12 White", "category": "Manhole Cover", "size": "12x12", "color": "White"},
+            {"part_no": "FRP01106-WH", "name": "FRP Manhole Cover 15 X 15 White", "category": "Manhole Cover", "size": "15x15", "color": "White"},
+            {"part_no": "FRP01109-WH", "name": "FRP Manhole Cover 18 X 18 White", "category": "Manhole Cover", "size": "18x18", "color": "White"},
+            {"part_no": "FRP01112-WH", "name": "FRP Manhole Cover 21 X 21 White", "category": "Manhole Cover", "size": "21x21", "color": "White"},
+            {"part_no": "FRP01115-WH", "name": "FRP Manhole Cover 24 X 24 White", "category": "Manhole Cover", "size": "24x24", "color": "White"},
+            {"part_no": "FRP01117-WH", "name": "FRP Manhole Cover 26 X 26 White", "category": "Manhole Cover", "size": "26x26", "color": "White"},
+            {"part_no": "FRP01119-WH", "name": "FRP Manhole Cover 28 X 28 White", "category": "Manhole Cover", "size": "28x28", "color": "White"},
+            {"part_no": "FRP01121-WH", "name": "FRP Manhole Cover 30 X 30 White", "category": "Manhole Cover", "size": "30x30", "color": "White"},
+            {"part_no": "FRP01127-WH", "name": "FRP Manhole Cover 36 X 36 White", "category": "Manhole Cover", "size": "36x36", "color": "White"},
+            {"part_no": "FRP04106-WH", "name": "FRP Manhole Cover 12 X 18 White", "category": "Manhole Cover", "size": "12x18", "color": "White"},
+            {"part_no": "FRP04112-WH", "name": "FRP Manhole Cover 12 X 24 White", "category": "Manhole Cover", "size": "12x24", "color": "White"},
+            {"part_no": "FRP10106-WH", "name": "FRP Manhole Cover 18 X 24 White", "category": "Manhole Cover", "size": "18x24", "color": "White"},
+            # Manhole Cover - Grey With Lock
+            {"part_no": "FRP01112-GRYL", "name": "FRP Manhole Cover 21 X 21 Grey With Lock", "category": "Manhole Cover", "size": "21x21", "color": "Grey"},
+            {"part_no": "FRP01115-GRYL", "name": "FRP Manhole Cover 24 X 24 Grey With Lock", "category": "Manhole Cover", "size": "24x24", "color": "Grey"},
+            {"part_no": "FRP01117-GRYL", "name": "FRP Manhole Cover 26 X 26 Grey With Lock", "category": "Manhole Cover", "size": "26x26", "color": "Grey"},
+            {"part_no": "FRP01119-GRYL", "name": "FRP Manhole Cover 28 X 28 Grey With Lock", "category": "Manhole Cover", "size": "28x28", "color": "Grey"},
+            {"part_no": "FRP01121-GRYL", "name": "FRP Manhole Cover 30 X 30 Grey With Lock", "category": "Manhole Cover", "size": "30x30", "color": "Grey"},
+            {"part_no": "FRP01127-GRYL", "name": "FRP Manhole Cover 36 X 36 Grey With Lock", "category": "Manhole Cover", "size": "36x36", "color": "Grey"},
+            # Manhole Cover - White With Lock
+            {"part_no": "FRP01112-WHL", "name": "FRP Manhole Cover 21 X 21 White With Lock", "category": "Manhole Cover", "size": "21x21", "color": "White"},
+            {"part_no": "FRP01115-WHL", "name": "FRP Manhole Cover 24 X 24 White With Lock", "category": "Manhole Cover", "size": "24x24", "color": "White"},
+            {"part_no": "FRP01117-WHL", "name": "FRP Manhole Cover 26 X 26 White With Lock", "category": "Manhole Cover", "size": "26x26", "color": "White"},
+            {"part_no": "FRP01119-WHL", "name": "FRP Manhole Cover 28 X 28 White With Lock", "category": "Manhole Cover", "size": "28x28", "color": "White"},
+            {"part_no": "FRP01121-WHL", "name": "FRP Manhole Cover 30 X 30 White With Lock", "category": "Manhole Cover", "size": "30x30", "color": "White"},
+            {"part_no": "FRP01127-WHL", "name": "FRP Manhole Cover 36 X 36 White With Lock", "category": "Manhole Cover", "size": "36x36", "color": "White"},
+            # Gully Cover - Grey
+            {"part_no": "RGC00001-GRY", "name": "RAKSHA Gully Cover 10 X 10 Grey", "category": "Gully Cover", "size": "10x10", "color": "Grey"},
+            {"part_no": "RGC00002-GRY", "name": "RAKSHA Gully Cover 12 X 12 Grey", "category": "Gully Cover", "size": "12x12", "color": "Grey"},
+            {"part_no": "RGC00003-GRY", "name": "RAKSHA Gully Cover 15 X 15 Grey", "category": "Gully Cover", "size": "15x15", "color": "Grey"},
+            {"part_no": "RGC00004-GRY", "name": "RAKSHA Gully Cover 18 X 18 Grey", "category": "Gully Cover", "size": "18x18", "color": "Grey"},
+            {"part_no": "RGC00005-GRY", "name": "RAKSHA Gully Cover 24 X 24 Grey", "category": "Gully Cover", "size": "24x24", "color": "Grey"},
+            # Gully Cover - White
+            {"part_no": "RGC00001-WH", "name": "RAKSHA Gully Cover 10 X 10 White", "category": "Gully Cover", "size": "10x10", "color": "White"},
+            {"part_no": "RGC00002-WH", "name": "RAKSHA Gully Cover 12 X 12 White", "category": "Gully Cover", "size": "12x12", "color": "White"},
+            {"part_no": "RGC00003-WH", "name": "RAKSHA Gully Cover 15 X 15 White", "category": "Gully Cover", "size": "15x15", "color": "White"},
+            {"part_no": "RGC00004-WH", "name": "RAKSHA Gully Cover 18 X 18 White", "category": "Gully Cover", "size": "18x18", "color": "White"},
+            {"part_no": "RGC00005-WH", "name": "RAKSHA Gully Cover 24 X 24 White", "category": "Gully Cover", "size": "24x24", "color": "White"},
+        ]
 
         pid = 1
-        for cat in categories:
-            for color in colors:
-                for lr, sizes in load_rating_sizes.items():
-                    for size in sizes["square"] + sizes["rectangle"]:
-                        name = f"{cat} {size}mm {color} {lr}"
-                        p = Product(id=pid, name=name, category=cat, size=size, load_rating=lr, material="FRP", color=color, hsn_code=hsn_codes.get(cat, "6914"))
-                        db.add(p)
-                        db.flush()
-                        db.add(Pricing(product_id=p.id, profit_margin=20, gst_rate=18))
-                        db.add(Stock(product_id=p.id, quantity=0, min_stock=10))
-                        pid += 1
+        for prod in products:
+            p = Product(id=pid, name=prod["name"], category=prod["category"], size=prod["size"], load_rating="5 Ton", material="FRP", color=prod["color"], hsn_code="6914")
+            db.add(p)
+            db.flush()
+            db.add(Pricing(product_id=p.id, profit_margin=20, gst_rate=18))
+            db.add(Stock(product_id=p.id, quantity=0, min_stock=10))
+            pid += 1
 
         db.commit()
         print(f"Seeded {pid - 1} products")
