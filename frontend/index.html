@@ -204,7 +204,7 @@
                     <div class="grid grid-cols-3 gap-3">
                         <div><label class="block text-sm">Contact Name *</label><input type="text" id="f-ccontactname" required class="w-full border rounded px-3 py-2"></div>
                         <div><label class="block text-sm">Contact Number *</label><input type="tel" id="f-ccontactnum" required pattern="[0-9]{10}" maxlength="10" class="w-full border rounded px-3 py-2" placeholder="10 digits"></div>
-                        <div><label class="block text-sm">Contact Email *</label><input type="email" id="f-ccontactemail" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.com$" class="w-full border rounded px-3 py-2" placeholder="name@domain.com"></div>
+                        <div><label class="block text-sm">Contact Email *</label><input type="email" id="f-ccontactemail" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" class="w-full border rounded px-3 py-2" placeholder="name@domain.com"></div>
                     </div>
                 </div>
                 <div class="border-t pt-3 mt-3">
@@ -215,7 +215,7 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3 mt-3">
                         <div><label class="block text-sm">Executive Number *</label><input type="tel" id="f-cexecnum" required pattern="[0-9]{10}" maxlength="10" class="w-full border rounded px-3 py-2" placeholder="10 digits"></div>
-                        <div><label class="block text-sm">Executive Email *</label><input type="email" id="f-cexecemail" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.com$" class="w-full border rounded px-3 py-2" placeholder="name@domain.com"></div>
+                        <div><label class="block text-sm">Executive Email *</label><input type="email" id="f-cexecemail" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" class="w-full border rounded px-3 py-2" placeholder="name@domain.com"></div>
                     </div>
                 </div>
                 <label class="block text-sm"><input type="checkbox" id="f-cblacklisted" class="mr-2">Blacklisted</label>
