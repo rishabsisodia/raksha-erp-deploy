@@ -1,0 +1,71 @@
+.nav-link.active {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.page {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal {
+    animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+#toast {
+    animation: toastIn 0.3s ease-out;
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.table-row:hover {
+    background-color: #f9fafb;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-paid {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-partial {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.stock-low {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.stock-ok {
+    color: #16a34a;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
