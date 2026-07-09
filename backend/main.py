@@ -13,7 +13,10 @@ app = FastAPI(title="Raksha ERP")
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+if DATABASE_URL.startswith("postgresql://"):
+    engine = create_engine(DATABASE_URL)
+else:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -124,7 +127,9 @@ class Settings(Base):
     value = Column(String, default="")
 
 
-Base.metadata.create_all(bind=engine)
+@app.on_event("startup")
+def startup_event():
+    Base.metadata.create_all(bind=engine)
 
 
 class ProductIn(BaseModel):
@@ -656,12 +661,16 @@ def update_settings(body: dict):
 
 # ---- FRONTEND ----
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
-app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+if os.path.isdir(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
 
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(frontend_path, "index.html"))
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return {"message": "Raksha ERP API is running. Frontend not found."}
 
 
 if __name__ == "__main__":
