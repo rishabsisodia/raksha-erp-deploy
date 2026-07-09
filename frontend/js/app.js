@@ -64,6 +64,7 @@ async function loadProducts() {
     _products.forEach(function(p) {
         h += '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-3 py-2">' + p.id + '</td>';
+        h += '<td class="px-3 py-2">' + (p.part_no || '-') + '</td>';
         h += '<td class="px-3 py-2 font-medium">' + p.name + '</td>';
         h += '<td class="px-3 py-2">' + (p.category || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (p.size || '-') + '</td>';
@@ -76,17 +77,18 @@ async function loadProducts() {
         h += '<button onclick="deleteProduct(' + p.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
     });
-    $('t-products').innerHTML = h || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No products</td></tr>';
+    $('t-products').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No products</td></tr>';
 }
 
 function editProduct(id) {
     var p = _products.find(function(x) { return x.id === id; });
     if (!p) return;
     $('f-pid').value = p.id;
+    $('f-ppartno').value = p.part_no || '';
     $('f-pname').value = p.name;
-    $('f-pcat').value = p.category || 'Manhole Cover';
+    $('f-pcat').value = p.category || '';
     $('f-psize').value = p.size || '';
-    $('f-pload').value = p.load_rating || 'A15';
+    $('f-pload').value = p.load_rating || '';
     $('f-phsn').value = p.hsn_code || '';
     $('m-product-title').textContent = 'Edit Product';
     showModal('m-product');
@@ -311,6 +313,7 @@ $('f-product').addEventListener('submit', async function(e) {
     e.preventDefault();
     var id = $('f-pid').value;
     var data = {
+        part_no: $('f-ppartno').value,
         name: $('f-pname').value,
         category: $('f-pcat').value,
         size: $('f-psize').value,

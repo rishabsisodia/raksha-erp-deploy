@@ -24,6 +24,7 @@ Base = declarative_base()
 class Product(Base):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True, index=True)
+    part_no = Column(String, default="")
     name = Column(String, nullable=False)
     category = Column(String, default="")
     size = Column(String, default="")
@@ -224,7 +225,7 @@ def seed_data():
 
         pid = 1
         for prod in products:
-            p = Product(id=pid, name=prod["name"], category=prod["category"], size=prod["size"], load_rating="5 Ton", material="FRP", color=prod["color"], hsn_code="39259090")
+            p = Product(id=pid, part_no=prod["part_no"], name=prod["name"], category=prod["category"], size=prod["size"], load_rating="5 Ton", material="FRP", color=prod["color"], hsn_code="39259090")
             db.add(p)
             db.flush()
             db.add(Pricing(product_id=p.id, raw_material_cost=prod["rate"], total_cost=prod["rate"], profit_margin=20, gst_rate=18, mrp=prod["mrp"]))
@@ -238,6 +239,7 @@ def seed_data():
 
 
 class ProductIn(BaseModel):
+    part_no: str = ""
     name: str
     category: str = ""
     size: str = ""
@@ -305,7 +307,7 @@ def list_products():
             stock_qty = p.stock.quantity if p.stock else 0
             mrp = p.pricing.mrp if p.pricing else 0
             out.append({
-                "id": p.id, "name": p.name, "category": p.category,
+                "id": p.id, "part_no": p.part_no, "name": p.name, "category": p.category,
                 "size": p.size, "load_rating": p.load_rating,
                 "material": p.material, "color": p.color, "unit": p.unit, "hsn_code": p.hsn_code,
                 "stock": stock_qty, "mrp": mrp

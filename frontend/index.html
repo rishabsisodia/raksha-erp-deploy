@@ -54,10 +54,11 @@
                     <button onclick="showModal('m-product')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Product</button>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
-                    <th class="px-3 py-2 text-left">ID</th><th class="px-3 py-2 text-left">Name</th>
-                    <th class="px-3 py-2 text-left">Category</th><th class="px-3 py-2 text-left">Size</th>
-                    <th class="px-3 py-2 text-left">Load</th><th class="px-3 py-2 text-left">Stock</th>
-                    <th class="px-3 py-2 text-left">MRP</th><th class="px-3 py-2 text-left">Actions</th>
+                    <th class="px-3 py-2 text-left">ID</th><th class="px-3 py-2 text-left">Part No.</th>
+                    <th class="px-3 py-2 text-left">Description</th><th class="px-3 py-2 text-left">Category</th>
+                    <th class="px-3 py-2 text-left">Size</th><th class="px-3 py-2 text-left">Load</th>
+                    <th class="px-3 py-2 text-left">Stock</th><th class="px-3 py-2 text-left">MRP</th>
+                    <th class="px-3 py-2 text-left">Actions</th>
                 </tr></thead><tbody id="t-products"></tbody></table>
             </div>
         </div>
@@ -134,14 +135,15 @@
             <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg" id="m-product-title">Add Product</h3><button onclick="hideModal('m-product')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-product" class="p-5 space-y-3">
                 <input type="hidden" id="f-pid">
+                <label class="block text-sm">Part No. *</label><input type="text" id="f-ppartno" required class="w-full border rounded px-3 py-2">
                 <label class="block text-sm">Description *</label><input type="text" id="f-pname" required class="w-full border rounded px-3 py-2">
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Category</label><select id="f-pcat" class="w-full border rounded px-3 py-2"><option>Manhole Cover</option><option>Gully Cover</option><option>Gratings</option><option>Frames</option><option>Lock(s)</option><option>Hinges</option></select></div>
-                    <div><label class="block text-sm">Size (mm)</label><input type="text" id="f-psize" class="w-full border rounded px-3 py-2" placeholder="600x600"></div>
+                    <div><label class="block text-sm">Category *</label><select id="f-pcat" required class="w-full border rounded px-3 py-2"><option value="">Select</option><option>Manhole Cover</option><option>Gully Cover</option><option>Gratings</option><option>Frames</option><option>Lock(s)</option><option>Hinges</option></select></div>
+                    <div><label class="block text-sm">Size (mm) *</label><input type="text" id="f-psize" required class="w-full border rounded px-3 py-2" placeholder="600x600"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Load Rating</label><select id="f-pload" class="w-full border rounded px-3 py-2"><option>2.5 Ton</option><option>5 Ton</option><option>10 Ton</option><option>12.5 Ton</option><option>25 Ton</option><option>40 Ton</option></select></div>
-                    <div><label class="block text-sm">HSN Code</label><input type="text" id="f-phsn" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">Load Rating *</label><select id="f-pload" required class="w-full border rounded px-3 py-2"><option value="">Select</option><option>2.5 Ton</option><option>5 Ton</option><option>10 Ton</option><option>12.5 Ton</option><option>25 Ton</option><option>40 Ton</option></select></div>
+                    <div><label class="block text-sm">HSN Code *</label><input type="text" id="f-phsn" required class="w-full border rounded px-3 py-2"></div>
                 </div>
                 <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save</button>
             </form>
@@ -153,7 +155,7 @@
             <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg">Set Pricing</h3><button onclick="hideModal('m-pricing')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-pricing" class="p-5 space-y-3">
                 <input type="hidden" id="f-prpid">
-                <label class="block text-sm">Purchase Price</label><input type="number" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">Purchase Price (Excl. GST)</label><input type="number" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm">MRP</label><input type="number" step="0.01" id="f-pmrp" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm">GST Rate %</label><input type="number" step="0.01" id="f-pgst" class="w-full border rounded px-3 py-2">
                 <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 mt-2">Save Pricing</button>
