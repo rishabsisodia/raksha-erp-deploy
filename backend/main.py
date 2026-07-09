@@ -148,18 +148,37 @@ def seed_data():
             db.commit()
 
         categories = ["Manhole Cover", "Gully Cover", "Frames", "Gratings", "Accessories"]
-        square_sizes = [f"{s}x{s}" for s in range(10, 38, 2)]
-        rect_sizes = ["12x18", "12x24", "18x24"]
         colors = ["Grey", "White"]
-        load_ratings = ["5 Ton", "10 Ton", "12.5 Ton", "25 Ton", "40 Ton"]
         hsn_codes = {"Manhole Cover": "6914", "Gully Cover": "6914", "Frames": "6914", "Gratings": "6914", "Accessories": "6914"}
+
+        load_rating_sizes = {
+            "5 Ton": {
+                "square": ["10x10", "12x12", "15x15", "18x18", "21x21", "24x24", "26x26", "28x28", "30x30", "36x36"],
+                "rectangle": ["12x18", "12x24", "18x24"]
+            },
+            "10 Ton": {
+                "square": ["18x18", "24x24", "28x28", "30x30", "42x42"],
+                "rectangle": []
+            },
+            "12.5 Ton": {
+                "square": ["18x18", "24x24", "28x28", "30x30", "42x42"],
+                "rectangle": []
+            },
+            "25 Ton": {
+                "square": ["24x24", "26x26", "28x28", "30x30", "36x36"],
+                "rectangle": []
+            },
+            "40 Ton": {
+                "square": ["36x36", "42x42"],
+                "rectangle": []
+            }
+        }
 
         pid = 1
         for cat in categories:
-            sizes = square_sizes if cat in ["Manhole Cover", "Gully Cover", "Frames"] else square_sizes[:6] + rect_sizes
             for color in colors:
-                for size in sizes:
-                    for lr in load_ratings:
+                for lr, sizes in load_rating_sizes.items():
+                    for size in sizes["square"] + sizes["rectangle"]:
                         name = f"{cat} {size}mm {color} {lr}"
                         p = Product(id=pid, name=name, category=cat, size=size, load_rating=lr, material="FRP", color=color, hsn_code=hsn_codes.get(cat, "6914"))
                         db.add(p)
