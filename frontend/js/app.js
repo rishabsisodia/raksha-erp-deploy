@@ -104,8 +104,8 @@ async function openPricing(id) {
     try {
         var pr = await api('/api/products/' + id + '/pricing');
         $('f-praw').value = pr.raw_material_cost || 0;
+        $('f-pmrp').value = pr.mrp || 0;
         $('f-pgst').value = pr.gst_rate || 18;
-        $('pv-mrp').textContent = fmt(pr.mrp || 0);
     } catch(e) {}
     showModal('m-pricing');
 }
@@ -334,6 +334,7 @@ $('f-pricing').addEventListener('submit', async function(e) {
     e.preventDefault();
     var data = {
         raw_material_cost: parseFloat($('f-praw').value) || 0,
+        mrp: parseFloat($('f-pmrp').value) || 0,
         labor_cost: 0,
         overhead_cost: 0,
         packing_cost: 0,

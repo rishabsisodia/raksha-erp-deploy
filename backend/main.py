@@ -224,7 +224,7 @@ def seed_data():
 
         pid = 1
         for prod in products:
-            p = Product(id=pid, name=prod["name"], category=prod["category"], size=prod["size"], load_rating="5 Ton", material="FRP", color=prod["color"], hsn_code="6914")
+            p = Product(id=pid, name=prod["name"], category=prod["category"], size=prod["size"], load_rating="5 Ton", material="FRP", color=prod["color"], hsn_code="39259090")
             db.add(p)
             db.flush()
             db.add(Pricing(product_id=p.id, raw_material_cost=prod["rate"], total_cost=prod["rate"], profit_margin=20, gst_rate=18, mrp=prod["mrp"]))
@@ -250,6 +250,7 @@ class ProductIn(BaseModel):
 
 class PricingIn(BaseModel):
     raw_material_cost: float = 0
+    mrp: float = 0
     labor_cost: float = 0
     overhead_cost: float = 0
     packing_cost: float = 0
@@ -391,20 +392,11 @@ def update_pricing(pid: int, inp: PricingIn):
         if not pr:
             pr = Pricing(product_id=pid)
             db.add(pr)
-        tc = inp.raw_material_cost + inp.labor_cost + inp.overhead_cost + inp.packing_cost
-        mrp = tc * (1 + inp.profit_margin / 100)
         pr.raw_material_cost = inp.raw_material_cost
-        pr.labor_cost = inp.labor_cost
-        pr.overhead_cost = inp.overhead_cost
-        pr.packing_cost = inp.packing_cost
-        pr.profit_margin = inp.profit_margin
+        pr.mrp = inp.mrp
         pr.gst_rate = inp.gst_rate
-        pr.total_cost = tc
-        pr.mrp = mrp
-        pr.dealer_price = mrp * 0.85
-        pr.distributor_price = mrp * 0.75
         db.commit()
-        return {"message": "Updated", "mrp": mrp}
+        return {"message": "Updated", "mrp": inp.mrp}
     finally:
         db.close()
 
