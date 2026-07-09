@@ -78,12 +78,22 @@ class StockEntry(Base):
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    phone = Column(String, default="")
-    email = Column(String, default="")
-    address = Column(String, default="")
-    gst_number = Column(String, default="")
+    customer_id = Column(String, unique=True, nullable=False)
+    gstin = Column(String, default="")
+    billing_address = Column(String, default="")
+    shipping_address = Column(String, default="")
     state = Column(String, default="")
+    district = Column(String, default="")
+    city = Column(String, default="")
+    pincode = Column(String, default="")
+    contact_name = Column(String, default="")
+    contact_number = Column(String, default="")
+    contact_email = Column(String, default="")
+    exec_code = Column(String, default="")
+    exec_name = Column(String, default="")
+    exec_number = Column(String, default="")
+    exec_email = Column(String, default="")
+    blacklisted = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -270,12 +280,22 @@ class PricingIn(BaseModel):
 
 
 class CustomerIn(BaseModel):
-    name: str
-    phone: str = ""
-    email: str = ""
-    address: str = ""
-    gst_number: str = ""
+    customer_id: str
+    gstin: str = ""
+    billing_address: str = ""
+    shipping_address: str = ""
     state: str = ""
+    district: str = ""
+    city: str = ""
+    pincode: str = ""
+    contact_name: str = ""
+    contact_number: str = ""
+    contact_email: str = ""
+    exec_code: str = ""
+    exec_name: str = ""
+    exec_number: str = ""
+    exec_email: str = ""
+    blacklisted: int = 0
 
 
 class SaleIn(BaseModel):
@@ -499,8 +519,12 @@ def list_customers():
     db = SessionLocal()
     try:
         rows = db.query(Customer).all()
-        return [{"id": c.id, "name": c.name, "phone": c.phone, "email": c.email,
-                 "address": c.address, "gst_number": c.gst_number, "state": c.state}
+        return [{"id": c.id, "customer_id": c.customer_id, "gstin": c.gstin,
+                 "billing_address": c.billing_address, "shipping_address": c.shipping_address,
+                 "state": c.state, "district": c.district, "city": c.city, "pincode": c.pincode,
+                 "contact_name": c.contact_name, "contact_number": c.contact_number, "contact_email": c.contact_email,
+                 "exec_code": c.exec_code, "exec_name": c.exec_name, "exec_number": c.exec_number, "exec_email": c.exec_email,
+                 "blacklisted": c.blacklisted}
                 for c in rows]
     finally:
         db.close()

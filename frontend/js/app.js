@@ -47,9 +47,9 @@ async function refreshDropdowns() {
     _products = await api('/api/products');
     _customers = await api('/api/customers');
     var po = '';
-    _products.forEach(function(p) { po += '<option value="' + p.id + '">' + p.name + ' (' + (p.size || 'N/A') + ')</option>'; });
+    _products.forEach(function(p) { po += '<option value="' + p.id + '">' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ')</option>'; });
     var co = '';
-    _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + c.name + '</option>'; });
+    _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + c.customer_id + ' - ' + c.contact_name + '</option>'; });
     var els = ['f-sprod','f-slprod'];
     els.forEach(function(id) { if ($(id)) $(id).innerHTML = po; });
     if ($('f-slcust')) $('f-slcust').innerHTML = co;
@@ -140,40 +140,51 @@ async function loadCustomers() {
     var h = '';
     _customers.forEach(function(c) {
         h += '<tr class="border-b hover:bg-gray-50">';
-        h += '<td class="px-3 py-2">' + c.id + '</td>';
-        h += '<td class="px-3 py-2 font-medium">' + c.name + '</td>';
-        h += '<td class="px-3 py-2">' + (c.phone || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (c.email || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (c.gst_number || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (c.state || '-') + '</td>';
-        h += '<td class="px-3 py-2">';
-        h += '<button onclick="editCustomer(' + c.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="deleteCustomer(' + c.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<td class="px-2 py-2 font-medium">' + (c.customer_id || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.gstin || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.state || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.district || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.city || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.contact_name || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.contact_number || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.exec_name || '-') + '</td>';
+        h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (c.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (c.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
+        h += '<td class="px-2 py-2">';
+        h += '<button onclick="editCustomer(' + c.id + ')" class="text-blue-600 hover:text-blue-800" title="Edit"><i class="fas fa-pen"></i></button>';
         h += '</td></tr>';
     });
-    $('t-customers').innerHTML = h || '<tr><td colspan="7" class="text-center py-4 text-gray-400">No customers</td></tr>';
+    $('t-customers').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No customers</td></tr>';
 }
 
 function editCustomer(id) {
     var c = _customers.find(function(x) { return x.id === id; });
     if (!c) return;
     $('f-cid').value = c.id;
-    $('f-cname').value = c.name;
-    $('f-cphone').value = c.phone || '';
-    $('f-cemail').value = c.email || '';
-    $('f-caddr').value = c.address || '';
-    $('f-cgst').value = c.gst_number || '';
+    $('f-ccustid').value = c.customer_id || '';
+    $('f-cgstin').value = c.gstin || '';
+    $('f-cbilladdr').value = c.billing_address || '';
+    $('f-cshipaddr').value = c.shipping_address || '';
     $('f-cstate').value = c.state || '';
+    $('f-cdistrict').value = c.district || '';
+    $('f-ccity').value = c.city || '';
+    $('f-cpincode').value = c.pincode || '';
+    $('f-ccontactname').value = c.contact_name || '';
+    $('f-ccontactnum').value = c.contact_number || '';
+    $('f-ccontactemail').value = c.contact_email || '';
+    $('f-cexeccode').value = c.exec_code || '';
+    $('f-cexecname').value = c.exec_name || '';
+    $('f-cexecnum').value = c.exec_number || '';
+    $('f-cexecemail').value = c.exec_email || '';
+    $('f-cblacklisted').checked = c.blacklisted === 1;
     $('m-cust-title').textContent = 'Edit Customer';
     showModal('m-customer');
 }
 
-async function deleteCustomer(id) {
-    if (!confirm('Delete this customer?')) return;
-    await api('/api/customers/' + id, {method: 'DELETE'});
-    toast('Customer deleted');
-    loadCustomers();
-}
+$('f-csameaddr').addEventListener('change', function() {
+    if (this.checked) {
+        $('f-cshipaddr').value = $('f-cbilladdr').value;
+    }
+});
 
 async function loadSales() {
     var sales = await api('/api/sales');
@@ -377,12 +388,22 @@ $('f-customer').addEventListener('submit', async function(e) {
     e.preventDefault();
     var id = $('f-cid').value;
     var data = {
-        name: $('f-cname').value,
-        phone: $('f-cphone').value,
-        email: $('f-cemail').value,
-        address: $('f-caddr').value,
-        gst_number: $('f-cgst').value,
-        state: $('f-cstate').value
+        customer_id: $('f-ccustid').value,
+        gstin: $('f-cgstin').value,
+        billing_address: $('f-cbilladdr').value,
+        shipping_address: $('f-cshipaddr').value,
+        state: $('f-cstate').value,
+        district: $('f-cdistrict').value,
+        city: $('f-ccity').value,
+        pincode: $('f-cpincode').value,
+        contact_name: $('f-ccontactname').value,
+        contact_number: $('f-ccontactnum').value,
+        contact_email: $('f-ccontactemail').value,
+        exec_code: $('f-cexeccode').value,
+        exec_name: $('f-cexecname').value,
+        exec_number: $('f-cexecnum').value,
+        exec_email: $('f-cexecemail').value,
+        blacklisted: $('f-cblacklisted').checked ? 1 : 0
     };
     if (id) {
         await api('/api/customers/' + id, {method: 'PUT', body: JSON.stringify(data)});
