@@ -528,6 +528,8 @@ SIZE_ORDER = {
 COLOR_ORDER = {"Grey": 0, "White": 1}
 CATEGORY_ORDER = {"Manhole Cover": 0, "Gully Cover": 1}
 
+CSV_ORDER = {pn: i for i, (pn, _) in enumerate(PART_NO_CSV)}
+
 @app.get("/api/products")
 def list_products():
     db = SessionLocal()
@@ -543,7 +545,7 @@ def list_products():
                 "material": p.material, "color": p.color, "unit": p.unit, "hsn_code": p.hsn_code,
                 "stock": stock_qty, "mrp": mrp
             })
-        out.sort(key=lambda p: p["id"])
+        out.sort(key=lambda p: CSV_ORDER.get(p["part_no"], 999))
         return out
     finally:
         db.close()
