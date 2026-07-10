@@ -545,11 +545,11 @@ def list_products():
             })
         def sort_key(p):
             cat = CATEGORY_ORDER.get(p["category"], 99)
-            color = COLOR_ORDER.get(p["color"], 2)
             sz = SIZE_ORDER.get((p["size"] or "").lower().strip(), 99)
+            color = COLOR_ORDER.get(p["color"], 2)
             name = p["name"] or ""
             has_lock = 1 if "lock" in name.lower() else 0
-            return (cat, color, has_lock, sz)
+            return (cat, sz, color, has_lock)
         out.sort(key=sort_key)
         return out
     finally:
