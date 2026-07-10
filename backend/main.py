@@ -12,7 +12,16 @@ import cloudinary.uploader
 
 app = FastAPI(title="Raksha ERP")
 
-cloudinary.config(secure=True)
+CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
+if CLOUDINARY_URL and "@" in CLOUDINARY_URL:
+    parts = CLOUDINARY_URL.replace("cloudinary://", "").split("@")
+    creds = parts[0].split(":")
+    cloudinary.config(
+        api_key=creds[0],
+        api_secret=creds[1],
+        cloud_name=parts[1],
+        secure=True
+    )
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
 if DATABASE_URL.startswith("postgres://"):
@@ -896,13 +905,16 @@ async def upload_file(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, "Only .jpg, .png, .pdf files allowed")
-    content = await file.read()
-    result = cloudinary.uploader.upload(
-        content,
-        folder="raksha_erp",
-        resource_type="auto"
-    )
-    return {"filename": result["public_id"], "url": result["secure_url"], "original": file.filename}
+    try:
+        content = await file.read()
+        result = cloudinary.uploader.upload(
+            content,
+            folder="raksha_erp",
+            resource_type="auto"
+        )
+        return {"filename": result["public_id"], "url": result["secure_url"], "original": file.filename}
+    except Exception as e:
+        raise HTTPException(500, f"Upload failed: {str(e)}")
 
 
 # ---- FRONTEND ----
