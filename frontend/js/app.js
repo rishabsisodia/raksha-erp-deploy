@@ -166,11 +166,11 @@ async function loadTransporters() {
         h += '<td class="px-2 py-2 font-medium">' + (t.transporter_id || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.phone || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.vehicle_no || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.vehicle_type || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.state || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.gst_number || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.pan_number || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.contact_person || '-') + '</td>';
+        h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (t.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (t.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
         h += '<td class="px-2 py-2">';
         h += '<button onclick="editTransporter(' + t.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
         h += '<button onclick="deleteTransporter(' + t.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
@@ -192,12 +192,13 @@ function editTransporter(id) {
     $('f-tdistrict').value = t.district || '';
     $('f-tcity').value = t.city || '';
     $('f-tpincode').value = t.pincode || '';
-    $('f-tvtype').value = t.vehicle_type || '';
-    $('f-tvehicle').value = t.vehicle_no || '';
     $('f-tgst').value = t.gst_number || '';
     $('f-tpan').value = t.pan_number || '';
     $('f-tcontactperson').value = t.contact_person || '';
     $('f-tcontactnum').value = t.contact_number || '';
+    $('f-tblacklisted').checked = t.blacklisted === 1;
+    $('f-tgstfile-name').textContent = t.gst_certificate ? 'Current: ' + t.gst_certificate : '';
+    $('f-tpanfile-name').textContent = t.pan_card ? 'Current: ' + t.pan_card : '';
     $('m-trans-title').textContent = 'Edit Transporter';
     showModal('m-transporter');
 }
@@ -474,6 +475,36 @@ $('f-customer').addEventListener('submit', async function(e) {
 $('f-transporter').addEventListener('submit', async function(e) {
     e.preventDefault();
     var id = $('f-tid').value;
+    var gstCert = '';
+    var panCard = '';
+    
+    // Upload GST Certificate if selected
+    var gstFile = $('f-tgstfile').files[0];
+    if (gstFile) {
+        var fd = new FormData();
+        fd.append('file', gstFile);
+        var res = await fetch('/api/upload', {method: 'POST', body: fd});
+        var data = await res.json();
+        gstCert = data.filename;
+    } else if (id) {
+        // Keep existing file when editing
+        var t = _transporters.find(function(x) { return x.id == id; });
+        if (t) gstCert = t.gst_certificate || '';
+    }
+    
+    // Upload PAN Card if selected
+    var panFile = $('f-tpanfile').files[0];
+    if (panFile) {
+        var fd = new FormData();
+        fd.append('file', panFile);
+        var res = await fetch('/api/upload', {method: 'POST', body: fd});
+        var data = await res.json();
+        panCard = data.filename;
+    } else if (id) {
+        var t = _transporters.find(function(x) { return x.id == id; });
+        if (t) panCard = t.pan_card || '';
+    }
+    
     var data = {
         transporter_id: $('f-ttransid').value,
         name: $('f-tname').value,
@@ -484,12 +515,13 @@ $('f-transporter').addEventListener('submit', async function(e) {
         district: $('f-tdistrict').value,
         city: $('f-tcity').value,
         pincode: $('f-tpincode').value,
-        vehicle_no: $('f-tvehicle').value,
-        vehicle_type: $('f-tvtype').value,
         gst_number: $('f-tgst').value,
         pan_number: $('f-tpan').value,
+        gst_certificate: gstCert,
+        pan_card: panCard,
         contact_person: $('f-tcontactperson').value,
-        contact_number: $('f-tcontactnum').value
+        contact_number: $('f-tcontactnum').value,
+        blacklisted: $('f-tblacklisted').checked ? 1 : 0
     };
     if (id) {
         await api('/api/transporters/' + id, {method: 'PUT', body: JSON.stringify(data)});

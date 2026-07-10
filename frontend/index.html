@@ -106,9 +106,9 @@
                 <div class="overflow-x-auto">
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
                     <th class="px-2 py-2 text-left">Transporter ID</th><th class="px-2 py-2 text-left">Name</th>
-                    <th class="px-2 py-2 text-left">Phone</th><th class="px-2 py-2 text-left">Vehicle No</th>
-                    <th class="px-2 py-2 text-left">Vehicle Type</th><th class="px-2 py-2 text-left">State</th>
-                    <th class="px-2 py-2 text-left">GST Number</th><th class="px-2 py-2 text-left">Contact Person</th>
+                    <th class="px-2 py-2 text-left">Phone</th><th class="px-2 py-2 text-left">State</th>
+                    <th class="px-2 py-2 text-left">GST Number</th><th class="px-2 py-2 text-left">PAN Number</th>
+                    <th class="px-2 py-2 text-left">Contact Person</th><th class="px-2 py-2 text-left">Status</th>
                     <th class="px-2 py-2 text-left">Actions</th>
                 </tr></thead><tbody id="t-transporters"></tbody></table>
                 </div>
@@ -264,10 +264,6 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-sm">Pincode *</label><input type="text" id="f-tpincode" required maxlength="6" class="w-full border rounded px-3 py-2" placeholder="6 digits"></div>
-                    <div><label class="block text-sm">Vehicle Type *</label><select id="f-tvtype" required class="w-full border rounded px-3 py-2"><option value="">Select</option><option>Truck</option><option>Tempo</option><option>Trailer</option><option>Other</option></select></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Vehicle No *</label><input type="text" id="f-tvehicle" required class="w-full border rounded px-3 py-2" placeholder="MH-12-AB-1234"></div>
                     <div><label class="block text-sm">GST Number *</label><input type="text" id="f-tgst" required class="w-full border rounded px-3 py-2"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -278,6 +274,22 @@
                     <div><label class="block text-sm">Contact Number *</label><input type="tel" id="f-tcontactnum" required maxlength="10" class="w-full border rounded px-3 py-2" placeholder="10 digits"></div>
                     <div></div>
                 </div>
+                <div class="border-t pt-3 mt-3">
+                    <p class="font-bold text-sm mb-2">Upload Documents</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm mb-1">GST Certificate (.jpg/.png/.pdf)</label>
+                            <input type="file" id="f-tgstfile" accept=".jpg,.jpeg,.png,.pdf" class="w-full border rounded px-3 py-2 text-sm">
+                            <p id="f-tgstfile-name" class="text-xs text-gray-500 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm mb-1">PAN Card (.jpg/.png/.pdf)</label>
+                            <input type="file" id="f-tpanfile" accept=".jpg,.jpeg,.png,.pdf" class="w-full border rounded px-3 py-2 text-sm">
+                            <p id="f-tpanfile-name" class="text-xs text-gray-500 mt-1"></p>
+                        </div>
+                    </div>
+                </div>
+                <label class="block text-sm mt-2"><input type="checkbox" id="f-tblacklisted" class="mr-2">Blacklisted</label>
                 <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save</button>
             </form>
         </div>

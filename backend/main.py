@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
 import os
+import uuid
+import base64
 
 app = FastAPI(title="Raksha ERP")
 
@@ -109,12 +111,13 @@ class Transporter(Base):
     district = Column(String, default="")
     city = Column(String, default="")
     pincode = Column(String, default="")
-    vehicle_no = Column(String, default="")
-    vehicle_type = Column(String, default="")
     gst_number = Column(String, default="")
     pan_number = Column(String, default="")
+    gst_certificate = Column(String, default="")
+    pan_card = Column(String, default="")
     contact_person = Column(String, default="")
     contact_number = Column(String, default="")
+    blacklisted = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -195,16 +198,7 @@ def seed_data():
             db.commit()
 
         if db.query(Product).count() > 0:
-            first = db.query(Product).first()
-            if first and first.part_no:
-                return
-
-        db.query(StockEntry).delete()
-        db.query(Stock).delete()
-        db.query(Pricing).delete()
-        db.query(Sale).delete()
-        db.query(Product).delete()
-        db.commit()
+            return
 
         products = [
             # Manhole Cover - Grey
@@ -329,12 +323,13 @@ class TransporterIn(BaseModel):
     district: str
     city: str
     pincode: str
-    vehicle_no: str
-    vehicle_type: str
     gst_number: str
     pan_number: str
+    gst_certificate: str = ""
+    pan_card: str = ""
     contact_person: str
     contact_number: str
+    blacklisted: int = 0
 
 
 class SaleIn(BaseModel):
@@ -620,9 +615,10 @@ def list_transporters():
         return [{"id": t.id, "transporter_id": t.transporter_id, "name": t.name,
                  "phone": t.phone, "email": t.email, "address": t.address,
                  "state": t.state, "district": t.district, "city": t.city, "pincode": t.pincode,
-                 "vehicle_no": t.vehicle_no, "vehicle_type": t.vehicle_type,
                  "gst_number": t.gst_number, "pan_number": t.pan_number,
-                 "contact_person": t.contact_person, "contact_number": t.contact_number}
+                 "gst_certificate": t.gst_certificate, "pan_card": t.pan_card,
+                 "contact_person": t.contact_person, "contact_number": t.contact_number,
+                 "blacklisted": t.blacklisted}
                 for t in rows]
     finally:
         db.close()
@@ -682,7 +678,7 @@ def list_sales():
             prod = db.query(Product).filter(Product.id == s.product_id).first()
             out.append({
                 "id": s.id, "invoice_no": s.invoice_no,
-                "customer_name": cust.name if cust else "?",
+                "customer_name": cust.contact_name if cust else "?",
                 "product_name": prod.name if prod else "?",
                 "quantity": s.quantity, "unit_price": s.unit_price,
                 "taxable_amount": s.taxable_amount,
@@ -853,7 +849,7 @@ def dashboard():
             "pending": sum(s.total_amount for s in db.query(Sale).filter(Sale.payment_status == "Pending").all()),
             "recent_sales": [
                 {"id": s.id, "invoice": s.invoice_no,
-                 "customer": (db.query(Customer).filter(Customer.id == s.customer_id).first() or type("", (), {"name": "?"})()).name,
+                 "customer": (db.query(Customer).filter(Customer.id == s.customer_id).first() or type("", (), {"contact_name": "?"})()).contact_name,
                  "amount": s.total_amount, "status": s.payment_status,
                  "date": s.sale_date.strftime("%d %b") if s.sale_date else ""}
                 for s in db.query(Sale).order_by(Sale.sale_date.desc()).limit(5).all()
@@ -888,6 +884,28 @@ def update_settings(body: dict):
         return {"message": "Settings updated"}
     finally:
         db.close()
+
+
+# ---- FILE UPLOAD ----
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, "Only .jpg, .png, .pdf files allowed")
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    content = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+    return {"filename": filename, "url": f"/uploads/{filename}", "original": file.filename}
+
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 # ---- FRONTEND ----
