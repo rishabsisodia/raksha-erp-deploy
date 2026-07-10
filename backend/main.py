@@ -222,106 +222,102 @@ def startup_event():
     seed_data()
 
 
-PART_NO_MAP = {
-    "FRP Manhole Cover 10 X 10 Grey": "FRP01101-GRY",
-    "FRP Manhole Cover 12 X 12 Grey": "FRP01103-GRY",
-    "FRP Manhole Cover 15 X 15 Grey": "FRP01106-GRY",
-    "FRP Manhole Cover 18 X 18 Grey": "FRP01109-GRY",
-    "FRP Manhole Cover 21 X 21 Grey": "FRP01112-GRY",
-    "FRP Manhole Cover 24 X 24 Grey": "FRP01115-GRY",
-    "FRP Manhole Cover 26 X 26 Grey": "FRP01117-GRY",
-    "FRP Manhole Cover 28 X 28 Grey": "FRP01119-GRY",
-    "FRP Manhole Cover 30 X 30 Grey": "FRP01121-GRY",
-    "FRP Manhole Cover 36 X 36 Grey": "FRP01127-GRY",
-    "FRP Manhole Cover 12 X 18 Grey": "FRP04106-GRY",
-    "FRP Manhole Cover 12 X 24 Grey": "FRP04112-GRY",
-    "FRP Manhole Cover 18 X 24 Grey": "FRP10106-GRY",
-    "FRP Manhole Cover 10 X 10 White": "FRP01101-WH",
-    "FRP Manhole Cover 12 X 12 White": "FRP01103-WH",
-    "FRP Manhole Cover 15 X 15 White": "FRP01106-WH",
-    "FRP Manhole Cover 18 X 18 White": "FRP01109-WH",
-    "FRP Manhole Cover 21 X 21 White": "FRP01112-WH",
-    "FRP Manhole Cover 24 X 24 White": "FRP01115-WH",
-    "FRP Manhole Cover 26 X 26 White": "FRP01117-WH",
-    "FRP Manhole Cover 28 X 28 White": "FRP01119-WH",
-    "FRP Manhole Cover 30 X 30 White": "FRP01121-WH",
-    "FRP Manhole Cover 36 X 36 White": "FRP01127-WH",
-    "FRP Manhole Cover 12 X 18 White": "FRP04106-WH",
-    "FRP Manhole Cover 12 X 24 White": "FRP04112-WH",
-    "FRP Manhole Cover 18 X 24 White": "FRP10106-WH",
-    "FRP Manhole Cover 21 X 21 Grey With Lock": "FRP01112-GRYL",
-    "FRP Manhole Cover 24 X 24 Grey With Lock": "FRP01115-GRYL",
-    "FRP Manhole Cover 26 X 26 Grey With Lock": "FRP01117-GRYL",
-    "FRP Manhole Cover 28 X 28 Grey With Lock": "FRP01119-GRYL",
-    "FRP Manhole Cover 30 X 30 Grey With Lock": "FRP01121-GRYL",
-    "FRP Manhole Cover 36 X 36 Grey With Lock": "FRP01127-GRYL",
-    "FRP Manhole Cover 21 X 21 White With Lock": "FRP01112-WHL",
-    "FRP Manhole Cover 24 X 24 White With Lock": "FRP01115-WHL",
-    "FRP Manhole Cover 26 X 26 White With Lock": "FRP01117-WHL",
-    "FRP Manhole Cover 28 X 28 White With Lock": "FRP01119-WHL",
-    "FRP Manhole Cover 30 X 30 White With Lock": "FRP01121-WHL",
-    "FRP Manhole Cover 36 X 36 White With Lock": "FRP01127-WHL",
-    "RAKSHA Gully Cover 10 X 10 Grey": "RGC00001-GRY",
-    "RAKSHA Gully Cover 12 X 12 Grey": "RGC00002-GRY",
-    "RAKSHA Gully Cover 15 X 15 Grey": "RGC00003-GRY",
-    "RAKSHA Gully Cover 18 X 18 Grey": "RGC00004-GRY",
-    "RAKSHA Gully Cover 24 X 24 Grey": "RGC00005-GRY",
-    "RAKSHA Gully Cover 10 X 10 White": "RGC00001-WH",
-    "RAKSHA Gully Cover 12 X 12 White": "RGC00002-WH",
-    "RAKSHA Gully Cover 15 X 15 White": "RGC00003-WH",
-    "RAKSHA Gully Cover 18 X 18 White": "RGC00004-WH",
-    "RAKSHA Gully Cover 24 X 24 White": "RGC00005-WH",
-}
+PART_NO_CSV = [
+    ("FRP01101-GRY", "FRP Manhole Cover 10 X 10  Grey"),
+    ("FRP01103-GRY", "FRP Manhole Cover 12 X 12  Grey"),
+    ("FRP01106-GRY", "FRP Manhole Cover 15 X 15 Grey"),
+    ("FRP01109-GRY", "FRP Manhole Cover 18 X 18 Grey"),
+    ("FRP01112-GRY", "FRP Manhole Cover 21 X 21 Grey"),
+    ("FRP01115-GRY", "FRP Manhole Cover 24 X 24 Grey"),
+    ("FRP01117-GRY", "FRP Manhole Cover 26 X 26 Grey"),
+    ("FRP01119-GRY", "FRP Manhole Cover 28 X 28 Grey"),
+    ("FRP01121-GRY", "FRP Manhole Cover 30 X 30 Grey"),
+    ("FRP01127-GRY", "FRP Manhole Cover 36 X 36 Grey"),
+    ("FRP04106-GRY", "FRP Manhole Cover 12 X 18  Grey"),
+    ("FRP04112-GRY", "FRP Manhole Cover 12 X 24  Grey"),
+    ("FRP10106-GRY", "FRP Manhole Cover 18 X 24 Grey"),
+    ("FRP01101-WH", "FRP Manhole Cover 10 X 10 White"),
+    ("FRP01103-WH", "FRP Manhole Cover 12 X 12  White"),
+    ("FRP01106-WH", "FRP Manhole Cover 15 X 15 White"),
+    ("FRP01109-WH", "FRP Manhole Cover 18 X 18 White"),
+    ("FRP01112-WH", "FRP Manhole Cover 21 X 21 White"),
+    ("FRP01115-WH", "FRP Manhole Cover 24 X 24 White"),
+    ("FRP01117-WH", "FRP Manhole Cover 26 X 26 White"),
+    ("FRP01119-WH", "FRP Manhole Cover 28 X 28 White"),
+    ("FRP01121-WH", "FRP Manhole Cover 30 X 30 White"),
+    ("FRP01127-WH", "FRP Manhole Cover 36 X 36 White"),
+    ("FRP04106-WH", "FRP Manhole Cover 12 X 18  White"),
+    ("FRP04112-WH", "FRP Manhole Cover 12 X 24  White"),
+    ("FRP10106-WH", "FRP Manhole Cover 18 X 24  White"),
+    ("FRP01112-GRYL", "FRP Manhole Cover 21 X 21 Grey With Lock"),
+    ("FRP01115-GRYL", "FRP Manhole Cover 24 X 24 Grey With Lock"),
+    ("FRP01117-GRYL", "FRP Manhole Cover 26 X 26 Grey With Lock"),
+    ("FRP01119-GRYL", "FRP Manhole Cover 28 X 28 Grey With Lock"),
+    ("FRP01121-GRYL", "FRP Manhole Cover 30 X 30 Grey With Lock"),
+    ("FRP01127-GRYL", "FRP Manhole Cover 36 X 36 Grey With Lock"),
+    ("FRP01112-WHL", "FRP Manhole Cover 21 X 21 White With Lock"),
+    ("FRP01115-WHL", "FRP Manhole Cover 24 X 24 White With Lock"),
+    ("FRP01117-WHL", "FRP Manhole Cover 26 X 26 White With Lock"),
+    ("FRP01119-WHL", "FRP Manhole Cover 28 X 28 White With Lock"),
+    ("FRP01121-WHL", "FRP Manhole Cover 30 X 30 White With Lock"),
+    ("FRP01127-WHL", "FRP Manhole Cover 36 X 36 White With Lock"),
+    ("RGC00001-GRY", "RAKSHA Gully Cover 10 X 10 Grey"),
+    ("RGC00002-GRY", "RAKSHA Gully Cover 12 X 12 Grey"),
+    ("RGC00003-GRY", "RAKSHA Gully Cover 15 X 15 Grey"),
+    ("RGC00004-GRY", "RAKSHA Gully Cover 18 X 18 Grey"),
+    ("RGC00005-GRY", "RAKSHA Gully Cover 24 X 24 Grey"),
+    ("RGC00001-WH", "RAKSHA Gully Cover 10 X 10 White"),
+    ("RGC00002-WH", "RAKSHA Gully Cover 12 X 12 White"),
+    ("RGC00003-WH", "RAKSHA Gully Cover 15 X 15 White"),
+    ("RGC00004-WH", "RAKSHA Gully Cover 18 X 18 White"),
+    ("RGC00005-WH", "RAKSHA Gully Cover 24 X 24 White"),
+]
 
 
 def generate_part_no(product):
     if product.part_no:
         return product.part_no
+    import re
     name_lower = (product.name or "").lower()
-    is_gully = "gully" in name_lower
-    prefix = "RGC" if is_gully else "FRP"
-    color = (product.color or "Grey").upper()
-    color_code = "WH" if "WHITE" in color else "GRY"
+    size = (product.size or "").lower().replace(" ", "")
+    color = (product.color or "").lower()
     has_lock = "lock" in name_lower
+    is_gully = "gully" in name_lower
+
+    size_dim_map = {
+        "250x250": ("10x10", "10X10"), "300x300": ("12x12", "12X12"),
+        "380x380": ("15x15", "15X15"), "450x450": ("18x18", "18X18"),
+        "535x535": ("21x21", "21X21"), "600x600": ("24x24", "24X24"),
+        "660x660": ("26x26", "26X26"), "710x710": ("28x28", "28X28"),
+        "760x760": ("30x30", "30X30"), "900x900": ("36x36", "36X36"),
+        "1065x1065": ("42x42", "42X42"),
+        "300x450": ("12x18", "12X18"), "300x600": ("12x24", "12X24"),
+        "450x600": ("18x24", "18X24"),
+    }
+    nominal = size_dim_map.get(size)
+    if not nominal:
+        m = re.search(r'(\d+)\s*x\s*(\d+)', product.size or product.name or "")
+        if m:
+            nominal = (f"{m.group(1)}x{m.group(2)}", f"{m.group(1)}X{m.group(2)}")
+        else:
+            return ""
+
+    nom_lower = nominal[0]
+    nom_upper = nominal[1]
+    color_code = "WH" if "white" in color else "GRY"
     if has_lock:
         color_code += "L"
-    size = product.size or ""
-    size_map = {
-        "10x10": "01101", "10x10 (grey)": "01101", "10x10 (white)": "01101",
-        "250x250": "01101",
-        "12x12": "01103", "12x12 (grey)": "01103", "12x12 (white)": "01103",
-        "300x300": "01103",
-        "15x15": "01106", "15x15 (grey)": "01106", "15x15 (white)": "01106",
-        "380x380": "01106",
-        "18x18": "01109", "18x18 (grey)": "01109", "18x18 (white)": "01109",
-        "450x450": "01109",
-        "21x21": "01112", "21x21 (grey)": "01112", "21x21 (white)": "01112",
-        "535x535": "01112",
-        "24x24": "01115", "24x24 (grey)": "01115", "24x24 (white)": "01115",
-        "600x600": "01115",
-        "26x26": "01117", "26x26 (grey)": "01117", "26x26 (white)": "01117",
-        "660x660": "01117",
-        "28x28": "01119", "28x28 (grey)": "01119", "28x28 (white)": "01119",
-        "710x710": "01119",
-        "30x30": "01121", "30x30 (grey)": "01121", "30x30 (white)": "01121",
-        "760x760": "01121",
-        "36x36": "01127", "36x36 (grey)": "01127", "36x36 (white)": "01127",
-        "900x900": "01127",
-        "42x42": "01133", "42x42 (grey)": "01133", "42x42 (white)": "01133",
-        "1065x1065": "01133",
-        "12x18": "04106", "12x18 (grey)": "04106", "12x18 (white)": "04106",
-        "300x450": "04106",
-        "12x24": "04112", "12x24 (grey)": "04112", "12x24 (white)": "04112",
-        "300x600": "04112",
-        "18x24": "10106", "18x24 (grey)": "10106", "18x24 (white)": "10106",
-        "450x600": "10106",
-    }
-    size_key = size.lower().strip()
-    code = size_map.get(size_key, "00000")
-    if is_gully:
-        num = code.lstrip("0") or "00001"
-        return f"RGC{num.zfill(5)}-{color_code}"
-    return f"{prefix}{code}-{color_code}"
+
+    prefix = "RGC" if is_gully else "FRP"
+    csv_desc = f"{prefix} {nom_upper} {('Grey' if 'grey' in color else 'White')}"
+    if has_lock:
+        csv_desc += " With Lock"
+
+    for pn, desc in PART_NO_CSV:
+        if desc.strip().lower() == csv_desc.strip().lower():
+            return pn
+
+    return ""
 
 
 def backfill_part_numbers():
