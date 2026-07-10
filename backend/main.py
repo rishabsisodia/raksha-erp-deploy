@@ -543,14 +543,7 @@ def list_products():
                 "material": p.material, "color": p.color, "unit": p.unit, "hsn_code": p.hsn_code,
                 "stock": stock_qty, "mrp": mrp
             })
-        def sort_key(p):
-            cat = CATEGORY_ORDER.get(p["category"], 99)
-            sz = SIZE_ORDER.get((p["size"] or "").lower().strip(), 99)
-            color = COLOR_ORDER.get(p["color"], 2)
-            name = p["name"] or ""
-            has_lock = 1 if "lock" in name.lower() else 0
-            return (cat, sz, color, has_lock)
-        out.sort(key=sort_key)
+        out.sort(key=lambda p: p["id"])
         return out
     finally:
         db.close()
