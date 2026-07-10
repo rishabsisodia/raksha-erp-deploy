@@ -12,12 +12,7 @@ import cloudinary.uploader
 
 app = FastAPI(title="Raksha ERP")
 
-cloudinary.config(
-    cloud_name=os.environ.get("CLOUDINARY_URL", "").split("@")[-1] if "@" in os.environ.get("CLOUDINARY_URL", "") else "",
-    api_key=os.environ.get("CLOUDINARY_URL", "").split("//")[1].split(":")[0] if "//" in os.environ.get("CLOUDINARY_URL", "") else "",
-    api_secret=os.environ.get("CLOUDINARY_URL", "").split(":")[1].split("@")[0] if ":" in os.environ.get("CLOUDINARY_URL", "") else "",
-    secure=True
-)
+cloudinary.config(secure=True)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
 if DATABASE_URL.startswith("postgres://"):
