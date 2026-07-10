@@ -322,19 +322,19 @@ class CustomerIn(BaseModel):
 class TransporterIn(BaseModel):
     transporter_id: str
     name: str
-    phone: str = ""
-    email: str = ""
-    address: str = ""
-    state: str = ""
-    district: str = ""
-    city: str = ""
-    pincode: str = ""
-    vehicle_no: str = ""
-    vehicle_type: str = ""
-    gst_number: str = ""
-    pan_number: str = ""
-    contact_person: str = ""
-    contact_number: str = ""
+    phone: str
+    email: str
+    address: str
+    state: str
+    district: str
+    city: str
+    pincode: str
+    vehicle_no: str
+    vehicle_type: str
+    gst_number: str
+    pan_number: str
+    contact_person: str
+    contact_number: str
 
 
 class SaleIn(BaseModel):
