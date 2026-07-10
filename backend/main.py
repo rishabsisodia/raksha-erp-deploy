@@ -274,12 +274,62 @@ PART_NO_MAP = {
 }
 
 
+def generate_part_no(product):
+    if product.part_no:
+        return product.part_no
+    name_lower = (product.name or "").lower()
+    is_gully = "gully" in name_lower
+    prefix = "RGC" if is_gully else "FRP"
+    color = (product.color or "Grey").upper()
+    color_code = "WH" if "WHITE" in color else "GRY"
+    has_lock = "lock" in name_lower
+    if has_lock:
+        color_code += "L"
+    size = product.size or ""
+    size_map = {
+        "10x10": "01101", "10x10 (grey)": "01101", "10x10 (white)": "01101",
+        "250x250": "01101",
+        "12x12": "01103", "12x12 (grey)": "01103", "12x12 (white)": "01103",
+        "300x300": "01103",
+        "15x15": "01106", "15x15 (grey)": "01106", "15x15 (white)": "01106",
+        "380x380": "01106",
+        "18x18": "01109", "18x18 (grey)": "01109", "18x18 (white)": "01109",
+        "450x450": "01109",
+        "21x21": "01112", "21x21 (grey)": "01112", "21x21 (white)": "01112",
+        "535x535": "01112",
+        "24x24": "01115", "24x24 (grey)": "01115", "24x24 (white)": "01115",
+        "600x600": "01115",
+        "26x26": "01117", "26x26 (grey)": "01117", "26x26 (white)": "01117",
+        "660x660": "01117",
+        "28x28": "01119", "28x28 (grey)": "01119", "28x28 (white)": "01119",
+        "710x710": "01119",
+        "30x30": "01121", "30x30 (grey)": "01121", "30x30 (white)": "01121",
+        "760x760": "01121",
+        "36x36": "01127", "36x36 (grey)": "01127", "36x36 (white)": "01127",
+        "900x900": "01127",
+        "42x42": "01133", "42x42 (grey)": "01133", "42x42 (white)": "01133",
+        "1065x1065": "01133",
+        "12x18": "04106", "12x18 (grey)": "04106", "12x18 (white)": "04106",
+        "300x450": "04106",
+        "12x24": "04112", "12x24 (grey)": "04112", "12x24 (white)": "04112",
+        "300x600": "04112",
+        "18x24": "10106", "18x24 (grey)": "10106", "18x24 (white)": "10106",
+        "450x600": "10106",
+    }
+    size_key = size.lower().strip()
+    code = size_map.get(size_key, "00000")
+    if is_gully:
+        num = code.lstrip("0") or "00001"
+        return f"RGC{num.zfill(5)}-{color_code}"
+    return f"{prefix}{code}-{color_code}"
+
+
 def backfill_part_numbers():
     db = SessionLocal()
     try:
         updated = 0
         for p in db.query(Product).filter((Product.part_no == "") | (Product.part_no.is_(None))).all():
-            pn = PART_NO_MAP.get(p.name)
+            pn = generate_part_no(p)
             if pn:
                 p.part_no = pn
                 updated += 1
