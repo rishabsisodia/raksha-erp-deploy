@@ -692,16 +692,16 @@ async def view_file(url: str = Query(...)):
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req) as resp:
             data = resp.read()
-            content_type = resp.headers.get("Content-Type", "application/octet-stream")
-            if url.endswith(".pdf"):
-                content_type = "application/pdf"
-            elif url.endswith(".jpg") or url.endswith(".jpeg"):
-                content_type = "image/jpeg"
-            elif url.endswith(".png"):
-                content_type = "image/png"
+            if data[:4] == b'%PDF':
+                content_type = 'application/pdf'
+            elif data[:2] == b'\xff\xd8':
+                content_type = 'image/jpeg'
+            elif data[:8] == b'\x89PNG\r\n\x1a\n':
+                content_type = 'image/png'
+            else:
+                content_type = resp.headers.get("Content-Type", "application/octet-stream")
             return Response(content=data, media_type=content_type, headers={
                 "Content-Disposition": "inline",
-                "Content-Type": content_type
             })
     except Exception as e:
         raise HTTPException(500, f"Failed to load file: {str(e)}")
