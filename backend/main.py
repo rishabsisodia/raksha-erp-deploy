@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
 from fastapi.responses import FileResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
@@ -9,6 +10,7 @@ from datetime import datetime, date
 import os
 import cloudinary
 import cloudinary.uploader
+import urllib.request
 
 app = FastAPI(title="Raksha ERP")
 
@@ -682,6 +684,27 @@ def fix_urls():
         return {"fixed": fixed}
     finally:
         db.close()
+
+
+@app.get("/api/view-file")
+async def view_file(url: str = Query(...)):
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as resp:
+            data = resp.read()
+            content_type = resp.headers.get("Content-Type", "application/octet-stream")
+            if url.endswith(".pdf"):
+                content_type = "application/pdf"
+            elif url.endswith(".jpg") or url.endswith(".jpeg"):
+                content_type = "image/jpeg"
+            elif url.endswith(".png"):
+                content_type = "image/png"
+            return Response(content=data, media_type=content_type, headers={
+                "Content-Disposition": "inline",
+                "Content-Type": content_type
+            })
+    except Exception as e:
+        raise HTTPException(500, f"Failed to load file: {str(e)}")
 
 
 @app.delete("/api/transporters/{tid}")

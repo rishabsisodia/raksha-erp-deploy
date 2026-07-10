@@ -197,8 +197,8 @@ function editTransporter(id) {
     $('f-tcontactperson').value = t.contact_person || '';
     $('f-tcontactnum').value = t.contact_number || '';
     $('f-tblacklisted').checked = t.blacklisted === 1;
-    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a href="' + t.gst_certificate + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
-    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a href="' + t.pan_card + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
+    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a href="/api/view-file?url=' + encodeURIComponent(t.gst_certificate) + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
+    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a href="/api/view-file?url=' + encodeURIComponent(t.pan_card) + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
     $('m-trans-title').textContent = 'Edit Transporter';
     showModal('m-transporter');
 }
