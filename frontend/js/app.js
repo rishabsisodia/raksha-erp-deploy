@@ -481,11 +481,13 @@ $('f-transporter').addEventListener('submit', async function(e) {
     // Upload GST Certificate if selected
     var gstFile = $('f-tgstfile').files[0];
     if (gstFile) {
-        var fd = new FormData();
-        fd.append('file', gstFile);
-        var res = await fetch('/api/upload', {method: 'POST', body: fd});
-        var data = await res.json();
-        gstCert = data.url;
+        try {
+            var fd = new FormData();
+            fd.append('file', gstFile);
+            var res = await fetch('/api/upload', {method: 'POST', body: fd});
+            var data = await res.json();
+            gstCert = data.url || '';
+        } catch(err) { console.error('GST upload failed:', err); }
     } else if (id) {
         var t = _transporters.find(function(x) { return x.id == id; });
         if (t) gstCert = t.gst_certificate || '';
@@ -494,17 +496,19 @@ $('f-transporter').addEventListener('submit', async function(e) {
     // Upload PAN Card if selected
     var panFile = $('f-tpanfile').files[0];
     if (panFile) {
-        var fd = new FormData();
-        fd.append('file', panFile);
-        var res = await fetch('/api/upload', {method: 'POST', body: fd});
-        var data = await res.json();
-        panCard = data.url;
+        try {
+            var fd = new FormData();
+            fd.append('file', panFile);
+            var res = await fetch('/api/upload', {method: 'POST', body: fd});
+            var data = await res.json();
+            panCard = data.url || '';
+        } catch(err) { console.error('PAN upload failed:', err); }
     } else if (id) {
         var t = _transporters.find(function(x) { return x.id == id; });
         if (t) panCard = t.pan_card || '';
     }
     
-    var data = {
+    var payload = {
         transporter_id: $('f-ttransid').value,
         name: $('f-tname').value,
         phone: $('f-tphone').value,
@@ -522,17 +526,21 @@ $('f-transporter').addEventListener('submit', async function(e) {
         contact_number: $('f-tcontactnum').value,
         blacklisted: $('f-tblacklisted').checked ? 1 : 0
     };
-    if (id) {
-        await api('/api/transporters/' + id, {method: 'PUT', body: JSON.stringify(data)});
-        toast('Transporter updated!');
-    } else {
-        await api('/api/transporters', {method: 'POST', body: JSON.stringify(data)});
-        toast('Transporter added!');
+    try {
+        if (id) {
+            await api('/api/transporters/' + id, {method: 'PUT', body: JSON.stringify(payload)});
+            toast('Transporter updated!');
+        } else {
+            await api('/api/transporters', {method: 'POST', body: JSON.stringify(payload)});
+            toast('Transporter added!');
+        }
+        hideModal('m-transporter');
+        $('f-transporter').reset();
+        $('f-tid').value = '';
+        loadTransporters();
+    } catch(err) {
+        toast('Error: ' + err.message, true);
     }
-    hideModal('m-transporter');
-    $('f-transporter').reset();
-    $('f-tid').value = '';
-    loadTransporters();
 });
 
 $('f-sale').addEventListener('submit', async function(e) {
