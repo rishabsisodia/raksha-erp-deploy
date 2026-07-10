@@ -474,6 +474,32 @@ $('f-customer').addEventListener('submit', async function(e) {
 
 $('f-transporter').addEventListener('submit', async function(e) {
     e.preventDefault();
+    
+    // Manual validation
+    var requiredFields = [
+        {id: 'f-ttransid', label: 'Transporter ID'},
+        {id: 'f-tname', label: 'Name'},
+        {id: 'f-tphone', label: 'Phone'},
+        {id: 'f-temail', label: 'Email'},
+        {id: 'f-taddr', label: 'Address'},
+        {id: 'f-tstate', label: 'State'},
+        {id: 'f-tdistrict', label: 'District'},
+        {id: 'f-tcity', label: 'City'},
+        {id: 'f-tpincode', label: 'Pincode'},
+        {id: 'f-tgst', label: 'GST Number'},
+        {id: 'f-tpan', label: 'PAN Number'},
+        {id: 'f-tcontactperson', label: 'Contact Person'},
+        {id: 'f-tcontactnum', label: 'Contact Number'}
+    ];
+    for (var i = 0; i < requiredFields.length; i++) {
+        var el = $(requiredFields[i].id);
+        if (!el.value || !el.value.trim()) {
+            toast(requiredFields[i].label + ' is required', true);
+            el.focus();
+            return;
+        }
+    }
+    
     var id = $('f-tid').value;
     var gstCert = '';
     var panCard = '';
