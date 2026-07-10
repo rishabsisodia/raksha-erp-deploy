@@ -197,8 +197,8 @@ function editTransporter(id) {
     $('f-tcontactperson').value = t.contact_person || '';
     $('f-tcontactnum').value = t.contact_number || '';
     $('f-tblacklisted').checked = t.blacklisted === 1;
-    $('f-tgstfile-name').textContent = t.gst_certificate ? 'Current: ' + t.gst_certificate : '';
-    $('f-tpanfile-name').textContent = t.pan_card ? 'Current: ' + t.pan_card : '';
+    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a href="' + t.gst_certificate + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
+    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a href="' + t.pan_card + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
     $('m-trans-title').textContent = 'Edit Transporter';
     showModal('m-transporter');
 }
@@ -485,9 +485,8 @@ $('f-transporter').addEventListener('submit', async function(e) {
         fd.append('file', gstFile);
         var res = await fetch('/api/upload', {method: 'POST', body: fd});
         var data = await res.json();
-        gstCert = data.filename;
+        gstCert = data.url;
     } else if (id) {
-        // Keep existing file when editing
         var t = _transporters.find(function(x) { return x.id == id; });
         if (t) gstCert = t.gst_certificate || '';
     }
@@ -499,7 +498,7 @@ $('f-transporter').addEventListener('submit', async function(e) {
         fd.append('file', panFile);
         var res = await fetch('/api/upload', {method: 'POST', body: fd});
         var data = await res.json();
-        panCard = data.filename;
+        panCard = data.url;
     } else if (id) {
         var t = _transporters.find(function(x) { return x.id == id; });
         if (t) panCard = t.pan_card || '';

@@ -7,10 +7,17 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
 import os
-import uuid
-import base64
+import cloudinary
+import cloudinary.uploader
 
 app = FastAPI(title="Raksha ERP")
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_URL", "").split("@")[-1] if "@" in os.environ.get("CLOUDINARY_URL", "") else "",
+    api_key=os.environ.get("CLOUDINARY_URL", "").split("//")[1].split(":")[0] if "//" in os.environ.get("CLOUDINARY_URL", "") else "",
+    api_secret=os.environ.get("CLOUDINARY_URL", "").split(":")[1].split("@")[0] if ":" in os.environ.get("CLOUDINARY_URL", "") else "",
+    secure=True
+)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
 if DATABASE_URL.startswith("postgres://"):
@@ -886,10 +893,7 @@ def update_settings(body: dict):
         db.close()
 
 
-# ---- FILE UPLOAD ----
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
+# ---- FILE UPLOAD (Cloudinary) ----
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
 
 @app.post("/api/upload")
@@ -897,15 +901,13 @@ async def upload_file(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, "Only .jpg, .png, .pdf files allowed")
-    filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
     content = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(content)
-    return {"filename": filename, "url": f"/uploads/{filename}", "original": file.filename}
-
-
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+    result = cloudinary.uploader.upload(
+        content,
+        folder="raksha_erp",
+        resource_type="auto"
+    )
+    return {"filename": result["public_id"], "url": result["secure_url"], "original": file.filename}
 
 
 # ---- FRONTEND ----
