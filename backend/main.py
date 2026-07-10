@@ -212,6 +212,12 @@ def db_info():
 @app.on_event("startup")
 def startup_event():
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(__import__("sqlalchemy").text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
+            conn.commit()
+        except Exception:
+            pass
     seed_data()
 
 
