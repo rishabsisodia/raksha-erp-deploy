@@ -663,6 +663,27 @@ def update_transporter(tid: int, inp: TransporterIn):
         db.close()
 
 
+@app.get("/api/fix-urls")
+def fix_urls():
+    db = SessionLocal()
+    try:
+        rows = db.query(Transporter).all()
+        fixed = 0
+        for t in rows:
+            changed = False
+            for field in ["gst_certificate", "pan_card"]:
+                url = getattr(t, field, "")
+                if url and "/image/upload/" in url and url.endswith(".pdf"):
+                    setattr(t, field, url.replace("/image/upload/", "/raw/upload/"))
+                    changed = True
+            if changed:
+                fixed += 1
+        db.commit()
+        return {"fixed": fixed}
+    finally:
+        db.close()
+
+
 @app.delete("/api/transporters/{tid}")
 def delete_transporter(tid: int):
     db = SessionLocal()
@@ -907,12 +928,16 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(400, "Only .jpg, .png, .pdf files allowed")
     try:
         content = await file.read()
+        rtype = "raw" if ext == ".pdf" else "image"
         result = cloudinary.uploader.upload(
             content,
             folder="raksha_erp",
-            resource_type="auto"
+            resource_type=rtype
         )
-        return {"filename": result["public_id"], "url": result["secure_url"], "original": file.filename}
+        url = result["secure_url"]
+        if rtype == "raw" and "/image/" in url:
+            url = url.replace("/image/upload/", "/raw/upload/")
+        return {"filename": result["public_id"], "url": url, "original": file.filename}
     except Exception as e:
         raise HTTPException(500, f"Upload failed: {str(e)}")
 
