@@ -50,7 +50,6 @@ class Product(Base):
     hsn_code = Column(String, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     pricing = relationship("Pricing", back_populates="product", uselist=False, cascade="all,delete-orphan")
-    stock = relationship("Stock", back_populates="product", uselist=False, cascade="all,delete-orphan")
 
 
 class Pricing(Base):
@@ -68,26 +67,6 @@ class Pricing(Base):
     distributor_price = Column(Float, default=0)
     gst_rate = Column(Float, default=18)
     product = relationship("Product", back_populates="pricing")
-
-
-class Stock(Base):
-    __tablename__ = "stock"
-    id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"), unique=True)
-    quantity = Column(Integer, default=0)
-    min_stock = Column(Integer, default=10)
-    product = relationship("Product", back_populates="stock")
-
-
-class StockEntry(Base):
-    __tablename__ = "stock_entries"
-    id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"))
-    quantity = Column(Integer)
-    entry_type = Column(String, default="IN")
-    reference = Column(String, default="")
-    notes = Column(String, default="")
-    entry_date = Column(DateTime, default=datetime.utcnow)
 
 
 class Customer(Base):
@@ -192,6 +171,32 @@ class Token(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     user = relationship("User")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+    id = Column(Integer, primary_key=True, index=True)
+    sl_no = Column(Integer, default=0)
+    po_no = Column(String, default="")
+    po_date = Column(String, default="")
+    billing_site = Column(String, default="")
+    shipping_site = Column(String, default="")
+    no_of_boxes = Column(Integer, default=0)
+    value_excl_gst_freight = Column(Float, default=0)
+    invoice_no = Column(String, default="")
+    invoice_date = Column(String, default="")
+    invoice_amount_excl_gst = Column(Float, default=0)
+    weight_kgs = Column(Float, default=0)
+    freight_rate_per_kg = Column(Float, default=0)
+    transport_charges = Column(Float, default=0)
+    invoice_amount = Column(Float, default=0)
+    eway_bill_no = Column(String, default="")
+    lr_no = Column(String, default="")
+    entry_date = Column(String, default="")
+    credit_note_amount = Column(Float, default=0)
+    credit_note_no = Column(String, default="")
+    transporter = Column(String, default="")
+    transporter_no = Column(String, default="")
 
 
 @app.get("/api/db-info")
@@ -412,7 +417,6 @@ def seed_data():
             db.add(p)
             db.flush()
             db.add(Pricing(product_id=p.id, raw_material_cost=prod["rate"], total_cost=prod["rate"], profit_margin=20, gst_rate=18, mrp=prod["mrp"]))
-            db.add(Stock(product_id=p.id, quantity=0, min_stock=10))
             pid += 1
 
         db.commit()
@@ -501,11 +505,28 @@ class ExpenseIn(BaseModel):
     expense_date: Optional[str] = None
 
 
-class StockIn(BaseModel):
-    product_id: int
-    quantity: int
-    reference: str = ""
-    notes: str = ""
+class OrderIn(BaseModel):
+    sl_no: int = 0
+    po_no: str = ""
+    po_date: str = ""
+    billing_site: str = ""
+    shipping_site: str = ""
+    no_of_boxes: int = 0
+    value_excl_gst_freight: float = 0
+    invoice_no: str = ""
+    invoice_date: str = ""
+    invoice_amount_excl_gst: float = 0
+    weight_kgs: float = 0
+    freight_rate_per_kg: float = 0
+    transport_charges: float = 0
+    invoice_amount: float = 0
+    eway_bill_no: str = ""
+    lr_no: str = ""
+    entry_date: str = ""
+    credit_note_amount: float = 0
+    credit_note_no: str = ""
+    transporter: str = ""
+    transporter_no: str = ""
 
 
 # ---- PRODUCTS ----
@@ -537,13 +558,12 @@ def list_products():
         rows = db.query(Product).all()
         out = []
         for p in rows:
-            stock_qty = p.stock.quantity if p.stock else 0
             mrp = p.pricing.mrp if p.pricing else 0
             out.append({
                 "id": p.id, "part_no": p.part_no, "name": p.name, "category": p.category,
                 "size": p.size, "load_rating": p.load_rating,
                 "material": p.material, "color": p.color, "unit": p.unit, "hsn_code": p.hsn_code,
-                "stock": stock_qty, "mrp": mrp
+                "mrp": mrp
             })
         out.sort(key=lambda p: CSV_ORDER.get(p["part_no"], 999))
         return out
@@ -560,7 +580,6 @@ def create_product(inp: ProductIn):
         db.commit()
         db.refresh(p)
         db.add(Pricing(product_id=p.id))
-        db.add(Stock(product_id=p.id, quantity=0))
         db.commit()
         return {"id": p.id, "message": "Product created"}
     finally:
@@ -637,83 +656,65 @@ def update_pricing(pid: int, inp: PricingIn):
         db.close()
 
 
-# ---- STOCK ----
-@app.get("/api/stock")
-def list_stock():
+# ---- ORDERS ----
+@app.get("/api/orders")
+def list_orders():
     db = SessionLocal()
     try:
-        rows = db.query(Stock).all()
-        out = []
-        for s in rows:
-            p = db.query(Product).filter(Product.id == s.product_id).first()
-            if p:
-                out.append({
-                    "product_id": s.product_id,
-                    "product_name": p.name,
-                    "category": p.category,
-                    "size": p.size,
-                    "quantity": s.quantity,
-                    "min_stock": s.min_stock,
-                    "unit": p.unit,
-                    "status": "low" if s.quantity <= s.min_stock else "ok"
-                })
-        return out
+        rows = db.query(Order).order_by(Order.id).all()
+        return [{"id": o.id, "sl_no": o.sl_no, "po_no": o.po_no, "po_date": o.po_date,
+                 "billing_site": o.billing_site, "shipping_site": o.shipping_site,
+                 "no_of_boxes": o.no_of_boxes, "value_excl_gst_freight": o.value_excl_gst_freight,
+                 "invoice_no": o.invoice_no, "invoice_date": o.invoice_date,
+                 "invoice_amount_excl_gst": o.invoice_amount_excl_gst,
+                 "weight_kgs": o.weight_kgs, "freight_rate_per_kg": o.freight_rate_per_kg,
+                 "transport_charges": o.transport_charges, "invoice_amount": o.invoice_amount,
+                 "eway_bill_no": o.eway_bill_no, "lr_no": o.lr_no, "entry_date": o.entry_date,
+                 "credit_note_amount": o.credit_note_amount, "credit_note_no": o.credit_note_no,
+                 "transporter": o.transporter, "transporter_no": o.transporter_no}
+                for o in rows]
     finally:
         db.close()
 
 
-@app.put("/api/stock/{pid}")
-def update_stock_min(pid: int, body: dict):
+@app.post("/api/orders")
+def create_order(inp: OrderIn):
     db = SessionLocal()
     try:
-        s = db.query(Stock).filter(Stock.product_id == pid).first()
-        if not s:
+        o = Order(**inp.dict())
+        db.add(o)
+        db.commit()
+        db.refresh(o)
+        return {"id": o.id, "message": "Order created"}
+    finally:
+        db.close()
+
+
+@app.put("/api/orders/{oid}")
+def update_order(oid: int, inp: OrderIn):
+    db = SessionLocal()
+    try:
+        o = db.query(Order).filter(Order.id == oid).first()
+        if not o:
             raise HTTPException(404, "Not found")
-        if "min_stock" in body:
-            s.min_stock = int(body["min_stock"])
+        for k, v in inp.dict().items():
+            setattr(o, k, v)
         db.commit()
         return {"message": "Updated"}
     finally:
         db.close()
 
 
-@app.post("/api/stock/add")
-def add_stock(inp: StockIn):
+@app.delete("/api/orders/{oid}")
+def delete_order(oid: int):
     db = SessionLocal()
     try:
-        s = db.query(Stock).filter(Stock.product_id == inp.product_id).first()
-        if not s:
-            s = Stock(product_id=inp.product_id, quantity=0)
-            db.add(s)
-        s.quantity += inp.quantity
-        db.add(StockEntry(
-            product_id=inp.product_id, quantity=inp.quantity,
-            entry_type="IN", reference=inp.reference, notes=inp.notes
-        ))
+        o = db.query(Order).filter(Order.id == oid).first()
+        if not o:
+            raise HTTPException(404, "Not found")
+        db.delete(o)
         db.commit()
-        return {"message": f"Added {inp.quantity} units"}
-    finally:
-        db.close()
-
-
-@app.get("/api/stock/history")
-def stock_history():
-    db = SessionLocal()
-    try:
-        rows = db.query(StockEntry).order_by(StockEntry.entry_date.desc()).limit(50).all()
-        out = []
-        for e in rows:
-            p = db.query(Product).filter(Product.id == e.product_id).first()
-            out.append({
-                "id": e.id,
-                "product_name": p.name if p else "?",
-                "quantity": e.quantity,
-                "entry_type": e.entry_type,
-                "reference": e.reference,
-                "notes": e.notes,
-                "entry_date": e.entry_date.isoformat() if e.entry_date else None
-            })
-        return out
+        return {"message": "Deleted"}
     finally:
         db.close()
 
@@ -940,11 +941,6 @@ def create_sale(inp: SaleIn):
             notes=inp.notes
         )
         db.add(s)
-
-        stock = db.query(Stock).filter(Stock.product_id == inp.product_id).first()
-        if stock:
-            stock.quantity -= inp.quantity
-
         db.commit()
         return {"invoice_no": invoice_no, "total": total}
     finally:
@@ -958,9 +954,6 @@ def delete_sale(sid: int):
         s = db.query(Sale).filter(Sale.id == sid).first()
         if not s:
             raise HTTPException(404, "Not found")
-        stock = db.query(Stock).filter(Stock.product_id == s.product_id).first()
-        if stock:
-            stock.quantity += s.quantity
         db.delete(s)
         db.commit()
         return {"message": "Deleted"}
@@ -1058,7 +1051,6 @@ def dashboard():
             "total_customers": db.query(Customer).count(),
             "total_sales": db.query(Sale).count(),
             "revenue": sum(s.total_amount for s in db.query(Sale).all()),
-            "low_stock": db.query(Stock).filter(Stock.quantity <= Stock.min_stock).count(),
             "pending": sum(s.total_amount for s in db.query(Sale).filter(Sale.payment_status == "Pending").all()),
             "recent_sales": [
                 {"id": s.id, "invoice": s.invoice_no,

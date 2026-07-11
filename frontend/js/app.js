@@ -9,11 +9,11 @@ function go(page, el) {
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
     $('p-' + page).classList.remove('hidden');
     if (el) el.classList.add('bg-indigo-700');
-    var t = {dashboard:'Dashboard',products:'Products',stock:'Stock Management',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports'};
+    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports'};
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
-    if (page === 'stock') loadStock();
+    if (page === 'orders') loadOrders();
     if (page === 'customers') loadCustomers();
     if (page === 'transporters') loadTransporters();
     if (page === 'sales') loadSales();
@@ -39,7 +39,7 @@ function toast(msg, err) {
 
 async function showModal(id) {
     $(id).classList.remove('hidden');
-    if (id === 'm-stock' || id === 'm-sale') {
+    if (id === 'm-sale') {
         await refreshDropdowns();
     }
 }
@@ -51,8 +51,7 @@ async function refreshDropdowns() {
     _products.forEach(function(p) { po += '<option value="' + p.id + '">' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ')</option>'; });
     var co = '';
     _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + c.customer_id + ' - ' + c.contact_name + '</option>'; });
-    var els = ['f-sprod','f-slprod'];
-    els.forEach(function(id) { if ($(id)) $(id).innerHTML = po; });
+    if ($('f-slprod')) $('f-slprod').innerHTML = po;
     if ($('f-slcust')) $('f-slcust').innerHTML = co;
 }
 function hideModal(id) { $(id).classList.add('hidden'); }
@@ -70,7 +69,6 @@ async function loadProducts() {
         h += '<td class="px-3 py-2">' + (p.category || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (p.size || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (p.load_rating || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + p.stock + '</td>';
         h += '<td class="px-3 py-2">' + fmt(p.mrp) + '</td>';
         h += '<td class="px-3 py-2">';
         h += '<button onclick="editProduct(' + p.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
@@ -78,7 +76,7 @@ async function loadProducts() {
         h += '<button onclick="deleteProduct(' + p.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
     });
-    $('t-products').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No products</td></tr>';
+    $('t-products').innerHTML = h || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No products</td></tr>';
 }
 
 function editProduct(id) {
@@ -113,27 +111,78 @@ async function openPricing(id) {
     showModal('m-pricing');
 }
 
-async function loadStock() {
-    var stock = await api('/api/stock');
+async function loadOrders() {
+    var orders = await api('/api/orders');
     var h = '';
-    stock.forEach(function(s) {
+    orders.forEach(function(o) {
         h += '<tr class="border-b hover:bg-gray-50">';
-        h += '<td class="px-3 py-2 font-medium">' + s.product_name + '</td>';
-        h += '<td class="px-3 py-2">' + (s.category || '-') + '</td>';
-        h += '<td class="px-3 py-2 font-bold">' + s.quantity + '</td>';
-        h += '<td class="px-3 py-2">' + s.min_stock + '</td>';
-        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs ' + (s.status === 'low' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (s.status === 'low' ? 'LOW' : 'OK') + '</span></td>';
-        h += '<td class="px-3 py-2">' + s.unit + '</td>';
-        h += '<td class="px-3 py-2"><button onclick="editMinStock(' + s.product_id + ',' + s.min_stock + ')" class="text-blue-600 hover:text-blue-800" title="Edit Min"><i class="fas fa-pen"></i></button></td>';
-        h += '</tr>';
+        h += '<td class="px-2 py-2">' + (o.sl_no || '') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.po_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.po_date || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.billing_site || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.shipping_site || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.no_of_boxes || 0) + '</td>';
+        h += '<td class="px-2 py-2">' + fmt(o.value_excl_gst_freight) + '</td>';
+        h += '<td class="px-2 py-2">' + (o.invoice_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.invoice_date || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + fmt(o.invoice_amount_excl_gst) + '</td>';
+        h += '<td class="px-2 py-2">' + (o.weight_kgs || 0) + '</td>';
+        h += '<td class="px-2 py-2">' + (o.freight_rate_per_kg || 0) + '</td>';
+        h += '<td class="px-2 py-2">' + fmt(o.transport_charges) + '</td>';
+        h += '<td class="px-2 py-2 font-bold">' + fmt(o.invoice_amount) + '</td>';
+        h += '<td class="px-2 py-2">' + (o.eway_bill_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.lr_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.entry_date || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + fmt(o.credit_note_amount) + '</td>';
+        h += '<td class="px-2 py-2">' + (o.credit_note_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.transporter || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (o.transporter_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">';
+        h += '<button onclick="editOrder(' + o.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="deleteOrder(' + o.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '</td></tr>';
     });
-    $('t-stock').innerHTML = h || '<tr><td colspan="7" class="text-center py-4 text-gray-400">No stock data</td></tr>';
+    $('t-orders').innerHTML = h || '<tr><td colspan="22" class="text-center py-4 text-gray-400">No orders</td></tr>';
 }
 
-function editMinStock(pid, min) {
-    $('f-espid').value = pid;
-    $('f-esmin').value = min;
-    showModal('m-editstock');
+function editOrder(id) {
+    var orders = [];
+    api('/api/orders').then(function(data) {
+        orders = data;
+        var o = orders.find(function(x) { return x.id === id; });
+        if (!o) return;
+        $('f-oid').value = o.id;
+        $('f-oslno').value = o.sl_no || '';
+        $('f-opo').value = o.po_no || '';
+        $('f-opodate').value = o.po_date || '';
+        $('f-obilling').value = o.billing_site || '';
+        $('f-oshipping').value = o.shipping_site || '';
+        $('f-oboxes').value = o.no_of_boxes || '';
+        $('f-ovalue').value = o.value_excl_gst_freight || '';
+        $('f-oinvno').value = o.invoice_no || '';
+        $('f-oinvdate').value = o.invoice_date || '';
+        $('f-oinvamt').value = o.invoice_amount_excl_gst || '';
+        $('f-oweight').value = o.weight_kgs || '';
+        $('f-ofrate').value = o.freight_rate_per_kg || '';
+        $('f-otcharges').value = o.transport_charges || '';
+        $('f-oiamt').value = o.invoice_amount || '';
+        $('f-oeway').value = o.eway_bill_no || '';
+        $('f-olr').value = o.lr_no || '';
+        $('f-oentrydate').value = o.entry_date || '';
+        $('f-ocnamt').value = o.credit_note_amount || '';
+        $('f-ocnno').value = o.credit_note_no || '';
+        $('f-otransporter').value = o.transporter || '';
+        $('f-otransno').value = o.transporter_no || '';
+        $('m-order-title').textContent = 'Edit Order';
+        showModal('m-order');
+    });
+}
+
+async function deleteOrder(id) {
+    if (!confirm('Delete this order?')) return;
+    await api('/api/orders/' + id, {method: 'DELETE'});
+    toast('Order deleted');
+    loadOrders();
 }
 
 async function loadCustomers() {
@@ -259,7 +308,7 @@ async function loadSales() {
 }
 
 async function deleteSale(id) {
-    if (!confirm('Delete this sale? Stock will be restored.')) return;
+    if (!confirm('Delete this sale?')) return;
     await api('/api/sales/' + id, {method: 'DELETE'});
     toast('Sale deleted');
     loadSales();
@@ -312,7 +361,7 @@ async function loadDashboard() {
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500"><p class="text-gray-500 text-sm">Products</p><p class="text-2xl font-bold">' + d.total_products + '</p></div>';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500"><p class="text-gray-500 text-sm">Revenue</p><p class="text-2xl font-bold">' + fmt(d.revenue) + '</p></div>';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500"><p class="text-gray-500 text-sm">Sales</p><p class="text-2xl font-bold">' + d.total_sales + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500"><p class="text-gray-500 text-sm">Low Stock</p><p class="text-2xl font-bold text-red-600">' + d.low_stock + '</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500"><p class="text-gray-500 text-sm">Pending</p><p class="text-2xl font-bold text-red-600">' + fmt(d.pending) + '</p></div>';
     $('dash-cards').innerHTML = html;
 
     var rh = '';
@@ -325,17 +374,7 @@ async function loadDashboard() {
     }
     $('dash-recent').innerHTML = rh;
 
-    var stock = await api('/api/stock');
-    var low = stock.filter(function(s) { return s.status === 'low'; });
-    var lh = '';
-    if (low.length) {
-        low.forEach(function(s) {
-            lh += '<div class="flex justify-between items-center p-2 border-b border-red-100"><div><p class="font-medium text-sm">' + s.product_name + '</p><p class="text-xs text-gray-400">' + (s.size || '') + '</p></div><p class="font-bold text-sm text-red-600">' + s.quantity + ' / ' + s.min_stock + '</p></div>';
-        });
-    } else {
-        lh = '<p class="text-green-600 text-sm">All stock OK</p>';
-    }
-    $('dash-lowstock').innerHTML = lh;
+    $('dash-pending').innerHTML = '<p class="text-gray-400 text-sm">' + fmt(d.pending) + ' pending across all sales</p>';
 }
 
 async function loadReport() {
@@ -415,27 +454,43 @@ $('f-pricing').addEventListener('submit', async function(e) {
     loadProducts();
 });
 
-$('f-stock').addEventListener('submit', async function(e) {
+$('f-order').addEventListener('submit', async function(e) {
     e.preventDefault();
+    var id = $('f-oid').value;
     var data = {
-        product_id: parseInt($('f-sprod').value),
-        quantity: parseInt($('f-sqty').value),
-        reference: $('f-sref').value,
-        notes: $('f-snotes').value
+        sl_no: parseInt($('f-oslno').value) || 0,
+        po_no: $('f-opo').value,
+        po_date: $('f-opodate').value,
+        billing_site: $('f-obilling').value,
+        shipping_site: $('f-oshipping').value,
+        no_of_boxes: parseInt($('f-oboxes').value) || 0,
+        value_excl_gst_freight: parseFloat($('f-ovalue').value) || 0,
+        invoice_no: $('f-oinvno').value,
+        invoice_date: $('f-oinvdate').value,
+        invoice_amount_excl_gst: parseFloat($('f-oinvamt').value) || 0,
+        weight_kgs: parseFloat($('f-oweight').value) || 0,
+        freight_rate_per_kg: parseFloat($('f-ofrate').value) || 0,
+        transport_charges: parseFloat($('f-otcharges').value) || 0,
+        invoice_amount: parseFloat($('f-oiamt').value) || 0,
+        eway_bill_no: $('f-oeway').value,
+        lr_no: $('f-olr').value,
+        entry_date: $('f-oentrydate').value,
+        credit_note_amount: parseFloat($('f-ocnamt').value) || 0,
+        credit_note_no: $('f-ocnno').value,
+        transporter: $('f-otransporter').value,
+        transporter_no: $('f-otransno').value
     };
-    await api('/api/stock/add', {method: 'POST', body: JSON.stringify(data)});
-    hideModal('m-stock');
-    $('f-stock').reset();
-    toast('Stock added!');
-    loadStock();
-});
-
-$('f-editstock').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    await api('/api/stock/' + $('f-espid').value, {method: 'PUT', body: JSON.stringify({min_stock: parseInt($('f-esmin').value)})});
-    hideModal('m-editstock');
-    toast('Min stock updated!');
-    loadStock();
+    if (id) {
+        await api('/api/orders/' + id, {method: 'PUT', body: JSON.stringify(data)});
+        toast('Order updated!');
+    } else {
+        await api('/api/orders', {method: 'POST', body: JSON.stringify(data)});
+        toast('Order created!');
+    }
+    hideModal('m-order');
+    $('f-order').reset();
+    $('f-oid').value = '';
+    loadOrders();
 });
 
 $('f-customer').addEventListener('submit', async function(e) {

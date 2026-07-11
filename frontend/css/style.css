@@ -55,15 +55,6 @@
     color: #1e40af;
 }
 
-.stock-low {
-    color: #dc2626;
-    font-weight: 600;
-}
-
-.stock-ok {
-    color: #16a34a;
-}
-
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: #4f46e5;
