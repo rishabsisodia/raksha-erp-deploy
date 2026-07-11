@@ -290,22 +290,24 @@ $('f-csameaddr').addEventListener('change', function() {
 });
 
 async function loadSales() {
+    try {
     var sales = await api('/api/sales');
     var h = '';
     sales.forEach(function(s) {
         h += '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-3 py-2 font-medium">' + (s.invoice_no || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (s.party_name || s.customer_name || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + (s.party_name || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + fmt(s.freight || s.freight_amount) + '</td>';
+        h += '<td class="px-3 py-2">' + fmt(s.freight_amount) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (s.gp_percent ? s.gp_percent.toFixed(1) + '%' : '-') + '</td>';
+        h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
         h += '<td class="px-3 py-2"><button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button></td>';
         h += '</tr>';
     });
     $('t-sales').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No sales</td></tr>';
+    } catch(e) { console.error('loadSales error:', e); toast('Error loading sales: ' + e.message, true); }
 }
 
 async function deleteSale(id) {

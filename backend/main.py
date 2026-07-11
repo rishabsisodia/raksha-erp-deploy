@@ -925,33 +925,30 @@ def list_sales():
         rows = db.query(Sale).order_by(Sale.id.desc()).all()
         out = []
         for s in rows:
-            cust = db.query(Customer).filter(Customer.id == s.customer_id).first() if s.customer_id else None
-            prod = db.query(Product).filter(Product.id == s.product_id).first() if s.product_id else None
-            out.append({
-                "id": s.id, "invoice_no": s.invoice_no or "",
-                "customer_name": cust.contact_name if cust else (s.party_name or ""),
-                "product_name": prod.name if prod else "",
-                "quantity": s.quantity, "unit_price": s.unit_price,
-                "taxable_amount": s.taxable_amount or 0,
-                "cgst_amount": s.cgst_amount or 0, "sgst_amount": s.sgst_amount or 0,
-                "freight_amount": s.freight_amount or 0,
-                "total_amount": s.total_amount or 0,
-                "payment_status": s.payment_status or "",
-                "payment_method": s.payment_method or "",
-                "sale_date": s.sale_date.isoformat() if s.sale_date else None,
-                "notes": s.notes or "",
-                "party_name": s.party_name or "",
-                "location": s.location or "",
-                "state": s.state or "",
-                "transporter_name": s.transporter_name or "",
-                "lr_no": s.lr_no or "",
-                "weight_kgs": s.weight_kgs or 0,
-                "freight": s.freight_amount or 0,
-                "gp": s.gp or 0,
-                "gp_percent": s.gp_percent or 0,
-                "source_csv": s.source_csv or "",
-                "payment_terms": s.payment_terms or "",
-            })
+            try:
+                cust_name = ""
+                if s.customer_id:
+                    cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
+                    cust_name = cust.contact_name if cust else ""
+                party = s.party_name or cust_name or ""
+                loc = s.location or ""
+                out.append({
+                    "id": s.id, "invoice_no": s.invoice_no or "",
+                    "party_name": party, "location": loc,
+                    "state": s.state or "",
+                    "transporter_name": s.transporter_name or "",
+                    "lr_no": s.lr_no or "",
+                    "freight_amount": s.freight_amount or 0,
+                    "weight_kgs": s.weight_kgs or 0,
+                    "gp": s.gp or 0,
+                    "gp_percent": s.gp_percent or 0,
+                    "sale_date": s.sale_date.isoformat() if s.sale_date else None,
+                    "payment_terms": s.payment_terms or "",
+                    "payment_status": s.payment_status or "",
+                    "source_csv": s.source_csv or "",
+                })
+            except Exception:
+                continue
         return out
     finally:
         db.close()
