@@ -681,11 +681,15 @@ def list_orders():
 def create_order(inp: OrderIn):
     db = SessionLocal()
     try:
-        o = Order(**inp.dict())
+        max_sl = db.query(Order.sl_no).order_by(Order.sl_no.desc()).first()
+        next_sl = (max_sl[0] + 1) if max_sl and max_sl[0] else 1
+        data = inp.dict()
+        data["sl_no"] = next_sl
+        o = Order(**data)
         db.add(o)
         db.commit()
         db.refresh(o)
-        return {"id": o.id, "message": "Order created"}
+        return {"id": o.id, "sl_no": next_sl, "message": "Order created"}
     finally:
         db.close()
 
