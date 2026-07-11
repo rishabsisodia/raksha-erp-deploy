@@ -294,17 +294,18 @@ async function loadSales() {
     var h = '';
     sales.forEach(function(s) {
         h += '<tr class="border-b hover:bg-gray-50">';
-        h += '<td class="px-3 py-2 font-medium">' + s.invoice_no + '</td>';
+        h += '<td class="px-3 py-2 font-medium">' + (s.invoice_no || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
-        h += '<td class="px-3 py-2">' + s.customer_name + '</td>';
-        h += '<td class="px-3 py-2">' + s.product_name + '</td>';
-        h += '<td class="px-3 py-2">' + s.quantity + '</td>';
-        h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount) + '</td>';
-        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs ' + (s.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : s.payment_status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700') + '">' + s.payment_status + '</span></td>';
+        h += '<td class="px-3 py-2">' + (s.party_name || s.customer_name || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + fmt(s.freight || s.freight_amount) + '</td>';
+        h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + (s.gp_percent ? s.gp_percent.toFixed(1) + '%' : '-') + '</td>';
         h += '<td class="px-3 py-2"><button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button></td>';
         h += '</tr>';
     });
-    $('t-sales').innerHTML = h || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No sales</td></tr>';
+    $('t-sales').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No sales</td></tr>';
 }
 
 async function deleteSale(id) {

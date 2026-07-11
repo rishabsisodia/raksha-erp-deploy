@@ -922,24 +922,35 @@ def delete_transporter(tid: int):
 def list_sales():
     db = SessionLocal()
     try:
-        rows = db.query(Sale).order_by(Sale.sale_date.desc()).all()
+        rows = db.query(Sale).order_by(Sale.id.desc()).all()
         out = []
         for s in rows:
-            cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
-            prod = db.query(Product).filter(Product.id == s.product_id).first()
+            cust = db.query(Customer).filter(Customer.id == s.customer_id).first() if s.customer_id else None
+            prod = db.query(Product).filter(Product.id == s.product_id).first() if s.product_id else None
             out.append({
-                "id": s.id, "invoice_no": s.invoice_no,
-                "customer_name": cust.contact_name if cust else "?",
-                "product_name": prod.name if prod else "?",
+                "id": s.id, "invoice_no": s.invoice_no or "",
+                "customer_name": cust.contact_name if cust else (s.party_name or ""),
+                "product_name": prod.name if prod else "",
                 "quantity": s.quantity, "unit_price": s.unit_price,
-                "taxable_amount": s.taxable_amount,
-                "cgst_amount": s.cgst_amount, "sgst_amount": s.sgst_amount,
-                "freight_amount": s.freight_amount,
-                "total_amount": s.total_amount,
-                "payment_status": s.payment_status,
-                "payment_method": s.payment_method,
+                "taxable_amount": s.taxable_amount or 0,
+                "cgst_amount": s.cgst_amount or 0, "sgst_amount": s.sgst_amount or 0,
+                "freight_amount": s.freight_amount or 0,
+                "total_amount": s.total_amount or 0,
+                "payment_status": s.payment_status or "",
+                "payment_method": s.payment_method or "",
                 "sale_date": s.sale_date.isoformat() if s.sale_date else None,
-                "notes": s.notes
+                "notes": s.notes or "",
+                "party_name": s.party_name or "",
+                "location": s.location or "",
+                "state": s.state or "",
+                "transporter_name": s.transporter_name or "",
+                "lr_no": s.lr_no or "",
+                "weight_kgs": s.weight_kgs or 0,
+                "freight": s.freight_amount or 0,
+                "gp": s.gp or 0,
+                "gp_percent": s.gp_percent or 0,
+                "source_csv": s.source_csv or "",
+                "payment_terms": s.payment_terms or "",
             })
         return out
     finally:
