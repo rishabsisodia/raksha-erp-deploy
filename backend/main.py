@@ -1057,55 +1057,58 @@ def profit_loss(start_date: str = None, end_date: str = None):
         expenses = db.query(Expense).all()
         orders = db.query(Order).all()
 
+        # Revenue from Sales
         sale_revenue = sum(s.total_amount or 0 for s in sales)
         sale_freight = sum(s.freight_amount or 0 for s in sales)
         units = sum(s.quantity or 0 for s in sales)
         gst = sum((s.cgst_amount or 0) + (s.sgst_amount or 0) for s in sales)
+        gp_from_sales = sum(s.gp or 0 for s in sales)
+        gp_values = [s.gp_percent for s in sales if s.gp_percent and s.gp_percent > 0]
+        gp_avg = sum(gp_values) / len(gp_values) if gp_values else 0
 
-        order_revenue = sum(o.value_excl_gst_freight or 0 for o in orders)
-        order_freight = sum(o.transport_charges or 0 for o in orders)
+        # COGS from Orders (cost of goods)
+        order_cogs = sum(o.value_excl_gst_freight or 0 for o in orders)
+        order_freight_cost = sum(o.transport_charges or 0 for o in orders)
         order_invoice_total = sum(o.invoice_amount or 0 for o in orders)
         order_boxes = sum(o.no_of_boxes or 0 for o in orders)
         order_weight = sum(o.weight_kgs or 0 for o in orders)
         order_credit_notes = sum(o.credit_note_amount or 0 for o in orders)
 
-        gp_total = sum(s.gp or 0 for s in sales)
-        gp_values = [s.gp_percent for s in sales if s.gp_percent and s.gp_percent > 0]
-        gp_avg = sum(gp_values) / len(gp_values) if gp_values else 0
+        # Total revenue (sale revenue + freight from sales)
+        total_revenue = sale_revenue + sale_freight
 
-        total_revenue = order_revenue + sale_revenue
-        total_freight = order_freight + sale_freight
+        # Total COGS (order cost + transport)
+        total_cogs = order_cogs + order_freight_cost
 
         exp_by_cat = {}
         for e in expenses:
             exp_by_cat[e.category] = exp_by_cat.get(e.category, 0) + e.amount
         total_opex = sum(exp_by_cat.values())
 
-        gp = total_revenue + total_freight - order_credit_notes - total_opex
-        if gp_total > 0:
-            gp = gp_total
-        gross_margin = (gp / total_revenue * 100) if total_revenue else 0
+        gross_profit = total_revenue - total_cogs - order_credit_notes
+        if gp_from_sales > 0:
+            gross_profit = gp_from_sales
+        gross_margin = (gross_profit / total_revenue * 100) if total_revenue else 0
 
-        ebitda = gp - total_opex
+        ebitda = gross_profit - total_opex
         tax = ebitda * 0.25 if ebitda > 0 else 0
         pat = ebitda - tax
 
         return {
             "total_revenue": total_revenue,
-            "sale_revenue": sale_revenue, "order_revenue": order_revenue,
-            "freight_income": total_freight,
-            "sale_freight": sale_freight, "order_freight": order_freight,
-            "gst": gst, "units": units,
-            "order_boxes": order_boxes, "order_weight": order_weight,
+            "sale_revenue": sale_revenue, "sale_freight": sale_freight,
+            "total_cogs": total_cogs,
+            "order_cogs": order_cogs, "order_freight_cost": order_freight_cost,
             "order_invoice_total": order_invoice_total,
+            "order_boxes": order_boxes, "order_weight": order_weight,
             "order_credit_notes": order_credit_notes,
-            "gross_profit": gp, "gross_margin": gross_margin,
-            "gp_total_from_csv": gp_total, "gp_avg": gp_avg,
+            "gst": gst, "units": units,
+            "gross_profit": gross_profit, "gross_margin": gross_margin,
+            "gp_from_sales": gp_from_sales, "gp_avg": gp_avg,
             "expenses": exp_by_cat, "total_opex": total_opex,
             "ebitda": ebitda, "ebitda_margin": (ebitda / total_revenue * 100) if total_revenue else 0,
             "tax_rate": 25, "tax": tax, "pat": pat,
-            "total_orders": len(orders), "total_order_value": order_invoice_total,
-            "total_sales": len(sales),
+            "total_orders": len(orders), "total_sales": len(sales),
         }
     finally:
         db.close()
@@ -1124,19 +1127,29 @@ def dashboard():
         gp_total = sum(s.gp or 0 for s in all_sales)
         pending = sum(s.total_amount or 0 for s in all_sales if s.payment_status == "Pending")
         total_order_value = sum(o.invoice_amount or 0 for o in all_orders)
+        total_order_cost = sum(o.value_excl_gst_freight or 0 for o in all_orders)
 
         recent_sales = []
-        for s in db.query(Sale).order_by(Sale.sale_date.desc()).limit(5).all():
-            cust_name = ""
-            if s.customer_id:
-                cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
-                cust_name = cust.contact_name if cust else ""
-            recent_sales.append({
-                "id": s.id, "invoice": s.invoice_no or "",
-                "customer": s.party_name or cust_name or "",
-                "amount": s.total_amount or 0, "status": s.payment_status or "",
-                "date": s.sale_date.strftime("%d %b %Y") if s.sale_date else ""
-            })
+        for s in db.query(Sale).order_by(Sale.id.desc()).limit(5).all():
+            try:
+                cust_name = ""
+                if s.customer_id:
+                    cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
+                    cust_name = cust.contact_name if cust else ""
+                dt_str = ""
+                if s.sale_date:
+                    if hasattr(s.sale_date, 'strftime'):
+                        dt_str = s.sale_date.strftime("%d %b %Y")
+                    else:
+                        dt_str = str(s.sale_date)[:10]
+                recent_sales.append({
+                    "id": s.id, "invoice": s.invoice_no or "",
+                    "customer": s.party_name or cust_name or "",
+                    "amount": s.total_amount or 0, "status": s.payment_status or "",
+                    "date": dt_str
+                })
+            except Exception:
+                continue
 
         recent_orders = []
         for o in db.query(Order).order_by(Order.id.desc()).limit(5).all():
@@ -1158,9 +1171,15 @@ def dashboard():
             "gp_total": gp_total,
             "pending": pending,
             "total_order_value": total_order_value,
+            "total_order_cost": total_order_cost,
             "recent_sales": recent_sales,
             "recent_orders": recent_orders,
         }
+    except Exception as e:
+        return {"error": str(e), "total_products": 0, "total_customers": 0,
+                "total_orders": 0, "total_sales": 0, "revenue": 0, "freight": 0,
+                "gp_total": 0, "pending": 0, "total_order_value": 0,
+                "total_order_cost": 0, "recent_sales": [], "recent_orders": []}
     finally:
         db.close()
 

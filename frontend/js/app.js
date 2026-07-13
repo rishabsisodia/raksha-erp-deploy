@@ -364,8 +364,8 @@ async function loadDashboard() {
     var html = '';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500"><p class="text-gray-500 text-sm">Products</p><p class="text-2xl font-bold">' + d.total_products + '</p></div>';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500"><p class="text-gray-500 text-sm">Customers</p><p class="text-2xl font-bold">' + d.total_customers + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500"><p class="text-gray-500 text-sm">Orders</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-400">' + fmt(d.total_order_value) + ' value</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500"><p class="text-gray-500 text-sm">Revenue</p><p class="text-2xl font-bold">' + fmt(d.revenue) + '</p><p class="text-xs text-gray-400">' + d.total_sales + ' sales</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500"><p class="text-gray-500 text-sm">Orders (COGS)</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-400">' + fmt(d.total_order_value) + ' invoiced</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500"><p class="text-gray-500 text-sm">Sales</p><p class="text-2xl font-bold">' + d.total_sales + '</p><p class="text-xs text-gray-400">' + fmt(d.revenue) + ' revenue</p></div>';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500"><p class="text-gray-500 text-sm">Freight</p><p class="text-2xl font-bold">' + fmt(d.freight) + '</p></div>';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500"><p class="text-gray-500 text-sm">Pending</p><p class="text-2xl font-bold text-red-600">' + fmt(d.pending) + '</p></div>';
     $('dash-cards').innerHTML = html;
@@ -412,38 +412,42 @@ async function loadReport() {
     var h = '';
 
     h += '<div class="grid grid-cols-4 gap-4 mb-6">';
-    h += '<div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200"><p class="text-sm text-indigo-600 font-medium">Orders</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-500">' + fmt(d.order_invoice_total) + ' invoiced</p></div>';
-    h += '<div class="bg-green-50 rounded-lg p-4 border border-green-200"><p class="text-sm text-green-600 font-medium">Total Revenue</p><p class="text-2xl font-bold">' + fmt(d.total_revenue) + '</p><p class="text-xs text-gray-500">Orders: ' + fmt(d.order_revenue) + ' + Sales: ' + fmt(d.sale_revenue) + '</p></div>';
-    h += '<div class="bg-orange-50 rounded-lg p-4 border border-orange-200"><p class="text-sm text-orange-600 font-medium">Freight Income</p><p class="text-2xl font-bold">' + fmt(d.freight_income) + '</p><p class="text-xs text-gray-500">Orders: ' + fmt(d.order_freight) + ' + Sales: ' + fmt(d.sale_freight) + '</p></div>';
-    h += '<div class="bg-purple-50 rounded-lg p-4 border border-purple-200"><p class="text-sm text-purple-600 font-medium">Total Sales</p><p class="text-2xl font-bold">' + d.total_sales + '</p><p class="text-xs text-gray-500">' + d.units + ' units | ' + d.order_boxes + ' boxes</p></div>';
+    h += '<div class="bg-green-50 rounded-lg p-4 border border-green-200"><p class="text-sm text-green-600 font-medium">Revenue (Sales)</p><p class="text-2xl font-bold">' + fmt(d.total_revenue) + '</p><p class="text-xs text-gray-500">' + d.total_sales + ' sales | ' + d.units + ' units</p></div>';
+    h += '<div class="bg-red-50 rounded-lg p-4 border border-red-200"><p class="text-sm text-red-600 font-medium">COGS (Orders)</p><p class="text-2xl font-bold">' + fmt(d.total_cogs) + '</p><p class="text-xs text-gray-500">' + d.total_orders + ' orders | ' + d.order_boxes + ' boxes</p></div>';
+    h += '<div class="bg-purple-50 rounded-lg p-4 border border-purple-200"><p class="text-sm text-purple-600 font-medium">Gross Profit</p><p class="text-2xl font-bold">' + fmt(d.gross_profit) + '</p><p class="text-xs text-gray-500">' + d.gross_margin.toFixed(1) + '% margin</p></div>';
+    h += '<div class="bg-orange-50 rounded-lg p-4 border border-orange-200"><p class="text-sm text-orange-600 font-medium">EBITDA</p><p class="text-2xl font-bold">' + fmt(d.ebitda) + '</p><p class="text-xs text-gray-500">' + d.ebitda_margin.toFixed(1) + '% margin</p></div>';
     h += '</div>';
 
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-indigo-700 mb-2"><i class="fas fa-shopping-cart mr-2"></i>Orders Summary (from CSV)</h4>';
-    h += '<div class="flex justify-between"><span>Total Orders:</span><span class="font-bold">' + d.total_orders + '</span></div>';
-    h += '<div class="flex justify-between"><span>Order Value (excl GST):</span><span class="font-bold">' + fmt(d.order_revenue) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Invoice Total:</span><span class="font-bold">' + fmt(d.order_invoice_total) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Total Boxes:</span><span class="font-bold">' + d.order_boxes + '</span></div>';
-    h += '<div class="flex justify-between"><span>Total Weight:</span><span class="font-bold">' + Number(d.order_weight).toLocaleString('en-IN') + ' Kgs</span></div>';
-    h += '<div class="flex justify-between"><span>Transport/Freight:</span><span class="font-bold">' + fmt(d.order_freight) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Credit Notes:</span><span class="text-red-600 font-bold">' + fmt(d.order_credit_notes) + '</span></div>';
-    h += '</div>';
-
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-green-700 mb-2"><i class="fas fa-receipt mr-2"></i>Sales Summary (from CSV)</h4>';
+    h += '<div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200"><h4 class="font-bold text-green-700 mb-2"><i class="fas fa-arrow-up mr-2"></i>Revenue (Sales)</h4>';
     h += '<div class="flex justify-between"><span>Sales Revenue:</span><span class="font-bold">' + fmt(d.sale_revenue) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Freight Income:</span><span class="font-bold">' + fmt(d.sale_freight) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Sales Freight:</span><span class="font-bold">' + fmt(d.sale_freight) + '</span></div>';
     h += '<div class="flex justify-between"><span>GST Collected:</span><span class="font-bold">' + fmt(d.gst) + '</span></div>';
     h += '<div class="flex justify-between"><span>Units Sold:</span><span class="font-bold">' + d.units + '</span></div>';
-    h += '<div class="flex justify-between"><span>GP from Imports:</span><span class="font-bold">' + fmt(d.gp_total_from_csv) + '</span></div>';
+    if (d.gp_from_sales > 0) {
+        h += '<div class="flex justify-between"><span>GP (from Sales CSV):</span><span class="font-bold">' + fmt(d.gp_from_sales) + '</span></div>';
+    }
     if (d.gp_avg > 0) {
         h += '<div class="flex justify-between"><span>Avg GP%:</span><span class="font-bold">' + d.gp_avg.toFixed(1) + '%</span></div>';
     }
     h += '</div>';
 
+    h += '<div class="mb-4 p-4 bg-red-50 rounded-lg border border-red-200"><h4 class="font-bold text-red-700 mb-2"><i class="fas fa-arrow-down mr-2"></i>Cost of Goods (Orders)</h4>';
+    h += '<div class="flex justify-between"><span>Order Value (excl GST):</span><span class="font-bold">' + fmt(d.order_cogs) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Transport/Freight Cost:</span><span class="font-bold">' + fmt(d.order_freight_cost) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Total Invoice Amount:</span><span class="font-bold">' + fmt(d.order_invoice_total) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Total Boxes:</span><span class="font-bold">' + d.order_boxes + '</span></div>';
+    h += '<div class="flex justify-between"><span>Total Weight:</span><span class="font-bold">' + Number(d.order_weight).toLocaleString('en-IN') + ' Kgs</span></div>';
+    h += '<div class="flex justify-between"><span>Credit Notes:</span><span class="text-red-600 font-bold">' + fmt(d.order_credit_notes) + '</span></div>';
+    h += '<div class="flex justify-between border-t pt-1 mt-1 font-bold"><span>Total COGS:</span><span class="text-red-600">' + fmt(d.total_cogs) + '</span></div>';
+    h += '</div>';
+
     var gpC = d.gross_profit >= 0 ? 'text-green-600' : 'text-red-600';
-    h += '<div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200"><h4 class="font-bold text-green-700 mb-2"><i class="fas fa-chart-line mr-2"></i>Combined Gross Profit</h4>';
-    h += '<div class="flex justify-between text-lg"><span>Amount:</span><span class="font-bold ' + gpC + '">' + fmt(d.gross_profit) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.gross_margin.toFixed(1) + '%</span></div>';
-    h += '<p class="text-xs text-gray-500 mt-1">= Total Revenue + Freight - Credit Notes</p></div>';
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-calculator mr-2"></i>Gross Profit = Revenue - COGS</h4>';
+    h += '<div class="flex justify-between"><span>Revenue:</span><span class="font-bold">' + fmt(d.total_revenue) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Less: COGS:</span><span class="text-red-600 font-bold">' + fmt(d.total_cogs) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Less: Credit Notes:</span><span class="text-red-600 font-bold">' + fmt(d.order_credit_notes) + '</span></div>';
+    h += '<div class="flex justify-between border-t pt-1 mt-1 text-lg"><span>Gross Profit:</span><span class="font-bold ' + gpC + '">' + fmt(d.gross_profit) + ' (' + d.gross_margin.toFixed(1) + '%)</span></div>';
+    h += '</div>';
 
     h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-orange-700 mb-2"><i class="fas fa-building mr-2"></i>Operating Expenses</h4>';
     var keys = Object.keys(d.expenses || {});
@@ -455,7 +459,7 @@ async function loadReport() {
     h += '<div class="flex justify-between border-t pt-1 mt-1 font-bold"><span>Total OpEx:</span><span class="text-red-600">' + fmt(d.total_opex) + '</span></div></div>';
 
     var ebC = d.ebitda >= 0 ? 'text-green-600' : 'text-red-600';
-    h += '<div class="mb-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200"><h4 class="font-bold text-indigo-700 mb-2">EBITDA</h4>';
+    h += '<div class="mb-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200"><h4 class="font-bold text-indigo-700 mb-2">EBITDA = Gross Profit - OpEx</h4>';
     h += '<div class="flex justify-between text-lg"><span>Amount:</span><span class="font-bold ' + ebC + '">' + fmt(d.ebitda) + '</span></div>';
     h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.ebitda_margin.toFixed(1) + '%</span></div></div>';
 
