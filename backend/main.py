@@ -1057,42 +1057,55 @@ def profit_loss(start_date: str = None, end_date: str = None):
         expenses = db.query(Expense).all()
         orders = db.query(Order).all()
 
-        revenue = sum(s.total_amount or 0 for s in sales)
-        freight_income = sum(s.freight_amount or 0 for s in sales)
+        sale_revenue = sum(s.total_amount or 0 for s in sales)
+        sale_freight = sum(s.freight_amount or 0 for s in sales)
         units = sum(s.quantity or 0 for s in sales)
         gst = sum((s.cgst_amount or 0) + (s.sgst_amount or 0) for s in sales)
+
+        order_revenue = sum(o.value_excl_gst_freight or 0 for o in orders)
+        order_freight = sum(o.transport_charges or 0 for o in orders)
+        order_invoice_total = sum(o.invoice_amount or 0 for o in orders)
+        order_boxes = sum(o.no_of_boxes or 0 for o in orders)
+        order_weight = sum(o.weight_kgs or 0 for o in orders)
+        order_credit_notes = sum(o.credit_note_amount or 0 for o in orders)
+
         gp_total = sum(s.gp or 0 for s in sales)
         gp_values = [s.gp_percent for s in sales if s.gp_percent and s.gp_percent > 0]
         gp_avg = sum(gp_values) / len(gp_values) if gp_values else 0
 
-        avg_cost = db.query(Pricing.total_cost).filter(Pricing.total_cost > 0).all()
-        avg = sum(a[0] for a in avg_cost) / len(avg_cost) if avg_cost else 0
-        cogs = units * avg
+        total_revenue = order_revenue + sale_revenue
+        total_freight = order_freight + sale_freight
 
         exp_by_cat = {}
         for e in expenses:
             exp_by_cat[e.category] = exp_by_cat.get(e.category, 0) + e.amount
         total_opex = sum(exp_by_cat.values())
 
-        total_order_value = sum(o.invoice_amount or 0 for o in orders)
-        total_order_freight = sum(o.transport_charges or 0 for o in orders)
+        gp = total_revenue + total_freight - order_credit_notes - total_opex
+        if gp_total > 0:
+            gp = gp_total
+        gross_margin = (gp / total_revenue * 100) if total_revenue else 0
 
-        gp = revenue - cogs
         ebitda = gp - total_opex
         tax = ebitda * 0.25 if ebitda > 0 else 0
         pat = ebitda - tax
 
         return {
-            "revenue": revenue, "freight_income": freight_income,
+            "total_revenue": total_revenue,
+            "sale_revenue": sale_revenue, "order_revenue": order_revenue,
+            "freight_income": total_freight,
+            "sale_freight": sale_freight, "order_freight": order_freight,
             "gst": gst, "units": units,
-            "cogs": cogs, "gross_profit": gp,
-            "gross_margin": (gp / revenue * 100) if revenue else 0,
+            "order_boxes": order_boxes, "order_weight": order_weight,
+            "order_invoice_total": order_invoice_total,
+            "order_credit_notes": order_credit_notes,
+            "gross_profit": gp, "gross_margin": gross_margin,
             "gp_total_from_csv": gp_total, "gp_avg": gp_avg,
             "expenses": exp_by_cat, "total_opex": total_opex,
-            "ebitda": ebitda, "ebitda_margin": (ebitda / revenue * 100) if revenue else 0,
+            "ebitda": ebitda, "ebitda_margin": (ebitda / total_revenue * 100) if total_revenue else 0,
             "tax_rate": 25, "tax": tax, "pat": pat,
-            "total_orders": len(orders), "total_order_value": total_order_value,
-            "total_order_freight": total_order_freight,
+            "total_orders": len(orders), "total_order_value": order_invoice_total,
+            "total_sales": len(sales),
         }
     finally:
         db.close()

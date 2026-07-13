@@ -411,15 +411,26 @@ async function loadReport() {
     var d = await api(url);
     var h = '';
 
-    h += '<div class="grid grid-cols-3 gap-4 mb-6">';
-    h += '<div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200"><p class="text-sm text-indigo-600 font-medium">Total Orders</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-500">' + fmt(d.total_order_value) + ' value</p></div>';
-    h += '<div class="bg-green-50 rounded-lg p-4 border border-green-200"><p class="text-sm text-green-600 font-medium">Sales Revenue</p><p class="text-2xl font-bold">' + fmt(d.revenue) + '</p><p class="text-xs text-gray-500">' + d.units + ' units</p></div>';
-    h += '<div class="bg-orange-50 rounded-lg p-4 border border-orange-200"><p class="text-sm text-orange-600 font-medium">Freight Income</p><p class="text-2xl font-bold">' + fmt(d.freight_income) + '</p></div>';
+    h += '<div class="grid grid-cols-4 gap-4 mb-6">';
+    h += '<div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200"><p class="text-sm text-indigo-600 font-medium">Orders</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-500">' + fmt(d.order_invoice_total) + ' invoiced</p></div>';
+    h += '<div class="bg-green-50 rounded-lg p-4 border border-green-200"><p class="text-sm text-green-600 font-medium">Total Revenue</p><p class="text-2xl font-bold">' + fmt(d.total_revenue) + '</p><p class="text-xs text-gray-500">Orders: ' + fmt(d.order_revenue) + ' + Sales: ' + fmt(d.sale_revenue) + '</p></div>';
+    h += '<div class="bg-orange-50 rounded-lg p-4 border border-orange-200"><p class="text-sm text-orange-600 font-medium">Freight Income</p><p class="text-2xl font-bold">' + fmt(d.freight_income) + '</p><p class="text-xs text-gray-500">Orders: ' + fmt(d.order_freight) + ' + Sales: ' + fmt(d.sale_freight) + '</p></div>';
+    h += '<div class="bg-purple-50 rounded-lg p-4 border border-purple-200"><p class="text-sm text-purple-600 font-medium">Total Sales</p><p class="text-2xl font-bold">' + d.total_sales + '</p><p class="text-xs text-gray-500">' + d.units + ' units | ' + d.order_boxes + ' boxes</p></div>';
     h += '</div>';
 
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-indigo-700 mb-2"><i class="fas fa-chart-bar mr-2"></i>Sales Summary</h4>';
-    h += '<div class="flex justify-between"><span>Sales Revenue:</span><span class="font-bold">' + fmt(d.revenue) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Freight Income:</span><span class="font-bold">' + fmt(d.freight_income) + '</span></div>';
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-indigo-700 mb-2"><i class="fas fa-shopping-cart mr-2"></i>Orders Summary (from CSV)</h4>';
+    h += '<div class="flex justify-between"><span>Total Orders:</span><span class="font-bold">' + d.total_orders + '</span></div>';
+    h += '<div class="flex justify-between"><span>Order Value (excl GST):</span><span class="font-bold">' + fmt(d.order_revenue) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Invoice Total:</span><span class="font-bold">' + fmt(d.order_invoice_total) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Total Boxes:</span><span class="font-bold">' + d.order_boxes + '</span></div>';
+    h += '<div class="flex justify-between"><span>Total Weight:</span><span class="font-bold">' + Number(d.order_weight).toLocaleString('en-IN') + ' Kgs</span></div>';
+    h += '<div class="flex justify-between"><span>Transport/Freight:</span><span class="font-bold">' + fmt(d.order_freight) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Credit Notes:</span><span class="text-red-600 font-bold">' + fmt(d.order_credit_notes) + '</span></div>';
+    h += '</div>';
+
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-green-700 mb-2"><i class="fas fa-receipt mr-2"></i>Sales Summary (from CSV)</h4>';
+    h += '<div class="flex justify-between"><span>Sales Revenue:</span><span class="font-bold">' + fmt(d.sale_revenue) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Freight Income:</span><span class="font-bold">' + fmt(d.sale_freight) + '</span></div>';
     h += '<div class="flex justify-between"><span>GST Collected:</span><span class="font-bold">' + fmt(d.gst) + '</span></div>';
     h += '<div class="flex justify-between"><span>Units Sold:</span><span class="font-bold">' + d.units + '</span></div>';
     h += '<div class="flex justify-between"><span>GP from Imports:</span><span class="font-bold">' + fmt(d.gp_total_from_csv) + '</span></div>';
@@ -428,19 +439,11 @@ async function loadReport() {
     }
     h += '</div>';
 
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-purple-700 mb-2"><i class="fas fa-clipboard-list mr-2"></i>Order Summary</h4>';
-    h += '<div class="flex justify-between"><span>Total Orders:</span><span class="font-bold">' + d.total_orders + '</span></div>';
-    h += '<div class="flex justify-between"><span>Total Order Value:</span><span class="font-bold">' + fmt(d.total_order_value) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Order Freight:</span><span class="font-bold">' + fmt(d.total_order_freight) + '</span></div>';
-    h += '</div>';
-
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-red-700 mb-2"><i class="fas fa-receipt mr-2"></i>Cost of Goods</h4>';
-    h += '<div class="flex justify-between"><span>COGS:</span><span class="font-bold text-red-600">' + fmt(d.cogs) + '</span></div></div>';
-
     var gpC = d.gross_profit >= 0 ? 'text-green-600' : 'text-red-600';
-    h += '<div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200"><h4 class="font-bold text-green-700 mb-2">Gross Profit</h4>';
+    h += '<div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200"><h4 class="font-bold text-green-700 mb-2"><i class="fas fa-chart-line mr-2"></i>Combined Gross Profit</h4>';
     h += '<div class="flex justify-between text-lg"><span>Amount:</span><span class="font-bold ' + gpC + '">' + fmt(d.gross_profit) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.gross_margin.toFixed(1) + '%</span></div></div>';
+    h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.gross_margin.toFixed(1) + '%</span></div>';
+    h += '<p class="text-xs text-gray-500 mt-1">= Total Revenue + Freight - Credit Notes</p></div>';
 
     h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-orange-700 mb-2"><i class="fas fa-building mr-2"></i>Operating Expenses</h4>';
     var keys = Object.keys(d.expenses || {});
