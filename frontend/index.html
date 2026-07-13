@@ -22,6 +22,7 @@
             <a href="#" onclick="go('sales',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-shopping-cart w-5 mr-3"></i>Sales</a>
             <a href="#" onclick="go('expenses',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-receipt w-5 mr-3"></i>Expenses</a>
             <a href="#" onclick="go('reports',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-chart-line w-5 mr-3"></i>Reports</a>
+            <a href="#" onclick="go('settings',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-cog w-5 mr-3"></i>Settings</a>
         </nav>
     </aside>
 
@@ -184,6 +185,13 @@
                     </div>
                 </div>
                 <div id="rpt-body"></div>
+            </div>
+        </div>
+
+        <div id="p-settings" class="hidden">
+            <div class="bg-white rounded-xl shadow p-5 max-w-lg">
+                <h3 class="font-bold mb-4">Settings</h3>
+                <div id="settings-body"></div>
             </div>
         </div>
     </main>
@@ -379,10 +387,11 @@
 
     <div id="m-sale" class="modal-bg hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
         <div class="bg-white rounded-xl w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg">New Sale</h3><button onclick="hideModal('m-sale')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
+            <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg" id="m-sale-title">New Sale</h3><button onclick="hideModal('m-sale')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-sale" class="p-5 space-y-3">
+                <input type="hidden" id="f-slid">
                 <label class="block text-sm">Customer *</label><select id="f-slcust" required class="w-full border rounded px-3 py-2"></select>
-                <label class="block text-sm">Product *</label><select id="f-slprod" required class="w-full border rounded px-3 py-2"></select>
+                <label class="block text-sm">Product *</label><select id="f-slprod" required class="w-full border rounded px-3 py-2" onchange="calcSale()"></select>
                 <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-sm">Quantity *</label><input type="number" id="f-slqty" required class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
                     <div><label class="block text-sm">Unit Price *</label><input type="number" step="0.01" id="f-slprice" required class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
@@ -409,8 +418,9 @@
 
     <div id="m-expense" class="modal-bg hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
         <div class="bg-white rounded-xl w-full max-w-md mx-4 shadow-2xl">
-            <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg">Add Expense</h3><button onclick="hideModal('m-expense')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
+            <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg" id="m-expense-title">Add Expense</h3><button onclick="hideModal('m-expense')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-expense" class="p-5 space-y-3">
+                <input type="hidden" id="f-eid">
                 <label class="block text-sm">Category *</label><select id="f-ecat" required class="w-full border rounded px-3 py-2"><option>Rent</option><option>Salary</option><option>Utilities</option><option>Transport</option><option>Raw Material</option><option>Maintenance</option><option>Marketing</option><option>Office</option><option>Depreciation</option><option>Interest</option><option>Other</option></select>
                 <label class="block text-sm">Description</label><input type="text" id="f-edesc" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm">Amount *</label><input type="number" step="0.01" id="f-eamt" required class="w-full border rounded px-3 py-2">

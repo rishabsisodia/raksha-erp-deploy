@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
-from fastapi.responses import FileResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pydantic import BaseModel
@@ -934,17 +933,25 @@ def list_sales():
                 loc = s.location or ""
                 out.append({
                     "id": s.id, "invoice_no": s.invoice_no or "",
+                    "customer_id": s.customer_id or None,
+                    "product_id": s.product_id or None,
+                    "quantity": s.quantity or 0,
+                    "unit_price": s.unit_price or 0,
+                    "discount_percent": s.discount_percent or 0,
+                    "freight_amount": s.freight_amount or 0,
+                    "payment_status": s.payment_status or "",
+                    "payment_method": s.payment_method or "",
+                    "notes": s.notes or "",
                     "party_name": party, "location": loc,
                     "state": s.state or "",
                     "transporter_name": s.transporter_name or "",
                     "lr_no": s.lr_no or "",
-                    "freight_amount": s.freight_amount or 0,
                     "weight_kgs": s.weight_kgs or 0,
                     "gp": s.gp or 0,
                     "gp_percent": s.gp_percent or 0,
+                    "total_amount": s.total_amount or 0,
                     "sale_date": s.sale_date.isoformat() if s.sale_date else None,
                     "payment_terms": s.payment_terms or "",
-                    "payment_status": s.payment_status or "",
                     "source_csv": s.source_csv or "",
                 })
             except Exception:
@@ -1006,6 +1013,50 @@ def delete_sale(sid: int):
         db.close()
 
 
+@app.put("/api/sales/{sid}")
+def update_sale(sid: int, inp: SaleIn):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(404, "Not found")
+
+        prod = db.query(Product).filter(Product.id == inp.product_id).first()
+        if not prod:
+            raise HTTPException(404, "Product not found")
+        pr = db.query(Pricing).filter(Pricing.product_id == inp.product_id).first()
+        gst_rate = pr.gst_rate if pr else 18
+
+        taxable = inp.quantity * inp.unit_price
+        disc_amt = taxable * inp.discount_percent / 100
+        taxable -= disc_amt
+        cgst = taxable * gst_rate / 200
+        sgst = taxable * gst_rate / 200
+        total = taxable + cgst + sgst + inp.freight_amount
+
+        s.customer_id = inp.customer_id
+        s.product_id = inp.product_id
+        s.quantity = inp.quantity
+        s.unit_price = inp.unit_price
+        s.discount_percent = inp.discount_percent
+        s.discount_amount = disc_amt
+        s.taxable_amount = taxable
+        s.cgst_rate = gst_rate / 2
+        s.cgst_amount = cgst
+        s.sgst_rate = gst_rate / 2
+        s.sgst_amount = sgst
+        s.freight_amount = inp.freight_amount
+        s.total_amount = total
+        s.payment_status = inp.payment_status
+        s.payment_method = inp.payment_method
+        s.notes = inp.notes
+
+        db.commit()
+        return {"message": "Sale updated", "total": total}
+    finally:
+        db.close()
+
+
 # ---- EXPENSES ----
 @app.get("/api/expenses")
 def list_expenses():
@@ -1048,14 +1099,57 @@ def delete_expense(eid: int):
         db.close()
 
 
+@app.put("/api/expenses/{eid}")
+def update_expense(eid: int, inp: ExpenseIn):
+    db = SessionLocal()
+    try:
+        e = db.query(Expense).filter(Expense.id == eid).first()
+        if not e:
+            raise HTTPException(404, "Not found")
+        e.category = inp.category
+        e.description = inp.description
+        e.amount = inp.amount
+        e.vendor = inp.vendor
+        if inp.expense_date:
+            try:
+                e.expense_date = datetime.strptime(inp.expense_date, "%Y-%m-%d")
+            except Exception:
+                pass
+        db.commit()
+        return {"message": "Expense updated"}
+    finally:
+        db.close()
+
+
 # ---- REPORTS ----
 @app.get("/api/reports/profit-loss")
 def profit_loss(start_date: str = None, end_date: str = None):
     db = SessionLocal()
     try:
-        sales = db.query(Sale).all()
-        expenses = db.query(Expense).all()
-        orders = db.query(Order).all()
+        sales_q = db.query(Sale)
+        expenses_q = db.query(Expense)
+        orders_q = db.query(Order)
+
+        if start_date:
+            try:
+                sd = datetime.strptime(start_date, "%Y-%m-%d")
+                sales_q = sales_q.filter(Sale.sale_date >= sd)
+                expenses_q = expenses_q.filter(Expense.expense_date >= sd)
+                orders_q = orders_q.filter(Order.entry_date >= start_date)
+            except Exception:
+                pass
+        if end_date:
+            try:
+                ed = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                sales_q = sales_q.filter(Sale.sale_date <= ed)
+                expenses_q = expenses_q.filter(Expense.expense_date <= ed)
+                orders_q = orders_q.filter(Order.entry_date <= end_date)
+            except Exception:
+                pass
+
+        sales = sales_q.all()
+        expenses = expenses_q.all()
+        orders = orders_q.all()
 
         # Revenue from Sales
         sale_revenue = sum(s.total_amount or 0 for s in sales)

@@ -9,7 +9,7 @@ function go(page, el) {
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
     $('p-' + page).classList.remove('hidden');
     if (el) el.classList.add('bg-indigo-700');
-    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports'};
+    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
@@ -19,6 +19,7 @@ function go(page, el) {
     if (page === 'sales') loadSales();
     if (page === 'expenses') loadExpenses();
     if (page === 'reports') loadReport();
+    if (page === 'settings') loadSettings();
 }
 
 async function api(url, opts) {
@@ -200,7 +201,8 @@ async function loadCustomers() {
         h += '<td class="px-2 py-2">' + (c.exec_name || '-') + '</td>';
         h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (c.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (c.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
         h += '<td class="px-2 py-2">';
-        h += '<button onclick="editCustomer(' + c.id + ')" class="text-blue-600 hover:text-blue-800" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="editCustomer(' + c.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="deleteCustomer(' + c.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
     });
     $('t-customers').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No customers</td></tr>';
@@ -283,6 +285,13 @@ function editCustomer(id) {
     showModal('m-customer');
 }
 
+async function deleteCustomer(id) {
+    if (!confirm('Delete this customer?')) return;
+    await api('/api/customers/' + id, {method: 'DELETE'});
+    toast('Customer deleted');
+    loadCustomers();
+}
+
 $('f-csameaddr').addEventListener('change', function() {
     if (this.checked) {
         $('f-cshipaddr').value = $('f-cbilladdr').value;
@@ -303,8 +312,10 @@ async function loadSales() {
         h += '<td class="px-3 py-2">' + fmt(s.freight_amount) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
-        h += '<td class="px-3 py-2"><button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button></td>';
-        h += '</tr>';
+        h += '<td class="px-3 py-2">';
+        h += '<button onclick="editSale(' + s.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '</td></tr>';
     });
     $('t-sales').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No sales</td></tr>';
     } catch(e) { console.error('loadSales error:', e); toast('Error loading sales: ' + e.message, true); }
@@ -317,7 +328,26 @@ async function deleteSale(id) {
     loadSales();
 }
 
-function calcSale() {
+async function editSale(id) {
+    await refreshDropdowns();
+    var sales = await api('/api/sales');
+    var s = sales.find(function(x) { return x.id === id; });
+    if (!s) return;
+    $('f-slid').value = s.id;
+    $('m-sale-title').textContent = 'Edit Sale';
+    if ($('f-slcust')) $('f-slcust').value = s.customer_id || '';
+    if ($('f-slprod')) $('f-slprod').value = s.product_id || '';
+    if ($('f-slqty')) $('f-slqty').value = s.quantity || '';
+    if ($('f-slprice')) $('f-slprice').value = s.unit_price || '';
+    if ($('f-sldisc')) $('f-sldisc').value = s.discount_percent || 0;
+    if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
+    if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
+    if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
+    calcSale();
+    showModal('m-sale');
+}
+
+async function calcSale() {
     var qty = parseFloat($('f-slqty').value) || 0;
     var price = parseFloat($('f-slprice').value) || 0;
     var disc = parseFloat($('f-sldisc').value) || 0;
@@ -325,8 +355,16 @@ function calcSale() {
     var taxable = qty * price;
     var discAmt = taxable * disc / 100;
     taxable -= discAmt;
-    var cgst = taxable * 0.09;
-    var sgst = taxable * 0.09;
+    var gstRate = 18;
+    var prodId = $('f-slprod') ? $('f-slprod').value : '';
+    if (prodId) {
+        try {
+            var pr = await api('/api/products/' + prodId + '/pricing');
+            if (pr && pr.gst_rate) gstRate = pr.gst_rate;
+        } catch(e) {}
+    }
+    var cgst = taxable * gstRate / 200;
+    var sgst = taxable * gstRate / 200;
     var total = taxable + cgst + sgst + frt;
     $('sv-tax').textContent = fmt(taxable);
     $('sv-cgst').textContent = fmt(cgst);
@@ -345,10 +383,26 @@ async function loadExpenses() {
         h += '<td class="px-3 py-2">' + (e.description || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (e.vendor || '-') + '</td>';
         h += '<td class="px-3 py-2 font-bold text-red-600">' + fmt(e.amount) + '</td>';
-        h += '<td class="px-3 py-2"><button onclick="deleteExpense(' + e.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button></td>';
-        h += '</tr>';
+        h += '<td class="px-3 py-2">';
+        h += '<button onclick="editExpense(' + e.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="deleteExpense(' + e.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '</td></tr>';
     });
     $('t-expenses').innerHTML = h || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No expenses</td></tr>';
+}
+
+async function editExpense(id) {
+    var expenses = await api('/api/expenses');
+    var e = expenses.find(function(x) { return x.id === id; });
+    if (!e) return;
+    $('f-eid').value = e.id;
+    $('m-expense-title').textContent = 'Edit Expense';
+    $('f-ecat').value = e.category || '';
+    $('f-edesc').value = e.description || '';
+    $('f-eamt').value = e.amount || '';
+    $('f-evendor').value = e.vendor || '';
+    $('f-edate').value = e.expense_date ? e.expense_date.substring(0, 10) : '';
+    showModal('m-expense');
 }
 
 async function deleteExpense(id) {
@@ -687,6 +741,7 @@ $('f-transporter').addEventListener('submit', async function(e) {
 
 $('f-sale').addEventListener('submit', async function(e) {
     e.preventDefault();
+    var id = $('f-slid') ? $('f-slid').value : '';
     var data = {
         customer_id: parseInt($('f-slcust').value),
         product_id: parseInt($('f-slprod').value),
@@ -697,15 +752,24 @@ $('f-sale').addEventListener('submit', async function(e) {
         payment_status: $('f-slstatus').value,
         payment_method: $('f-slmethod').value
     };
-    var res = await api('/api/sales', {method: 'POST', body: JSON.stringify(data)});
-    hideModal('m-sale');
-    $('f-sale').reset();
-    toast('Sale created! ' + res.invoice_no);
+    if (id) {
+        var res = await api('/api/sales/' + id, {method: 'PUT', body: JSON.stringify(data)});
+        hideModal('m-sale');
+        $('f-sale').reset();
+        $('f-slid').value = '';
+        toast('Sale updated!');
+    } else {
+        var res = await api('/api/sales', {method: 'POST', body: JSON.stringify(data)});
+        hideModal('m-sale');
+        $('f-sale').reset();
+        toast('Sale created! ' + res.invoice_no);
+    }
     loadSales();
 });
 
 $('f-expense').addEventListener('submit', async function(e) {
     e.preventDefault();
+    var id = $('f-eid') ? $('f-eid').value : '';
     var data = {
         category: $('f-ecat').value,
         description: $('f-edesc').value,
@@ -713,10 +777,18 @@ $('f-expense').addEventListener('submit', async function(e) {
         vendor: $('f-evendor').value,
         expense_date: $('f-edate').value || null
     };
-    await api('/api/expenses', {method: 'POST', body: JSON.stringify(data)});
-    hideModal('m-expense');
-    $('f-expense').reset();
-    toast('Expense added!');
+    if (id) {
+        await api('/api/expenses/' + id, {method: 'PUT', body: JSON.stringify(data)});
+        hideModal('m-expense');
+        $('f-expense').reset();
+        $('f-eid').value = '';
+        toast('Expense updated!');
+    } else {
+        await api('/api/expenses', {method: 'POST', body: JSON.stringify(data)});
+        hideModal('m-expense');
+        $('f-expense').reset();
+        toast('Expense added!');
+    }
     loadExpenses();
 });
 
@@ -821,3 +893,29 @@ async function importExpensesCSV(input) {
 $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 $('f-edate').value = new Date().toISOString().split('T')[0];
 loadDashboard();
+
+// ---- SETTINGS ----
+async function loadSettings() {
+    try {
+        var s = await api('/api/settings');
+        var h = '<div class="space-y-4">';
+        h += '<div><label class="block text-sm font-medium mb-1">Company Name</label><input type="text" id="s-company" value="' + (s.company_name || 'Raksha') + '" class="w-full border rounded px-3 py-2"></div>';
+        h += '<div><label class="block text-sm font-medium mb-1">Default GST Rate %</label><input type="number" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" class="w-full border rounded px-3 py-2"></div>';
+        h += '<div><label class="block text-sm font-medium mb-1">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + (s.invoice_prefix || 'RFRP-') + '" class="w-full border rounded px-3 py-2"></div>';
+        h += '<div><label class="block text-sm font-medium mb-1">Tax Rate for P&L %</label><input type="number" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" class="w-full border rounded px-3 py-2"></div>';
+        h += '<button onclick="saveSettings()" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save Settings</button>';
+        h += '</div>';
+        $('settings-body').innerHTML = h;
+    } catch(e) { console.error('Settings error:', e); }
+}
+
+async function saveSettings() {
+    var data = {
+        company_name: $('s-company').value,
+        default_gst_rate: $('s-gst').value,
+        invoice_prefix: $('s-invprefix').value,
+        tax_rate: $('s-taxrate').value
+    };
+    await api('/api/settings', {method: 'PUT', body: JSON.stringify(data)});
+    toast('Settings saved!');
+}
