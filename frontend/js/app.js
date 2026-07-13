@@ -359,36 +359,82 @@ async function deleteExpense(id) {
 }
 
 async function loadDashboard() {
+    try {
     var d = await api('/api/dashboard');
     var html = '';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500"><p class="text-gray-500 text-sm">Products</p><p class="text-2xl font-bold">' + d.total_products + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500"><p class="text-gray-500 text-sm">Revenue</p><p class="text-2xl font-bold">' + fmt(d.revenue) + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500"><p class="text-gray-500 text-sm">Sales</p><p class="text-2xl font-bold">' + d.total_sales + '</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500"><p class="text-gray-500 text-sm">Customers</p><p class="text-2xl font-bold">' + d.total_customers + '</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500"><p class="text-gray-500 text-sm">Orders</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-400">' + fmt(d.total_order_value) + ' value</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500"><p class="text-gray-500 text-sm">Revenue</p><p class="text-2xl font-bold">' + fmt(d.revenue) + '</p><p class="text-xs text-gray-400">' + d.total_sales + ' sales</p></div>';
+    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500"><p class="text-gray-500 text-sm">Freight</p><p class="text-2xl font-bold">' + fmt(d.freight) + '</p></div>';
     html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500"><p class="text-gray-500 text-sm">Pending</p><p class="text-2xl font-bold text-red-600">' + fmt(d.pending) + '</p></div>';
     $('dash-cards').innerHTML = html;
+
+    var oh = '';
+    if (d.recent_orders && d.recent_orders.length) {
+        d.recent_orders.forEach(function(o) {
+            oh += '<div class="flex justify-between items-center p-2 border-b">';
+            oh += '<div><p class="font-medium text-sm">' + (o.po_no || 'Order #' + o.sl_no) + '</p>';
+            oh += '<p class="text-xs text-gray-400">' + (o.billing_site || '') + (o.entry_date ? ' - ' + o.entry_date : '') + '</p></div>';
+            oh += '<div class="text-right"><p class="font-bold text-sm">' + fmt(o.invoice_amount) + '</p>';
+            oh += '<p class="text-xs text-gray-400">' + (o.invoice_no || '-') + '</p></div></div>';
+        });
+    } else {
+        oh = '<p class="text-gray-400 text-sm">No orders yet</p>';
+    }
+    $('dash-orders').innerHTML = oh;
 
     var rh = '';
     if (d.recent_sales && d.recent_sales.length) {
         d.recent_sales.forEach(function(s) {
-            rh += '<div class="flex justify-between items-center p-2 border-b"><div><p class="font-medium text-sm">' + s.customer + '</p><p class="text-xs text-gray-400">' + s.invoice + ' - ' + s.date + '</p></div><div class="text-right"><p class="font-bold text-sm">' + fmt(s.amount) + '</p><span class="text-xs ' + (s.status === 'Paid' ? 'text-green-600' : 'text-orange-600') + '">' + s.status + '</span></div></div>';
+            rh += '<div class="flex justify-between items-center p-2 border-b">';
+            rh += '<div><p class="font-medium text-sm">' + (s.customer || 'Unknown') + '</p>';
+            rh += '<p class="text-xs text-gray-400">' + (s.invoice || '') + (s.date ? ' - ' + s.date : '') + '</p></div>';
+            rh += '<div class="text-right"><p class="font-bold text-sm">' + fmt(s.amount) + '</p>';
+            rh += '<span class="text-xs ' + (s.status === 'Paid' ? 'text-green-600' : 'text-orange-600') + '">' + (s.status || '') + '</span></div></div>';
         });
     } else {
         rh = '<p class="text-gray-400 text-sm">No sales yet</p>';
     }
     $('dash-recent').innerHTML = rh;
-
-    $('dash-pending').innerHTML = '<p class="text-gray-400 text-sm">' + fmt(d.pending) + ' pending across all sales</p>';
+    } catch(e) { console.error('Dashboard error:', e); }
 }
 
 async function loadReport() {
-    var d = await api('/api/reports/profit-loss');
+    try {
+    var from = $('rpt-from') ? $('rpt-from').value : '';
+    var to = $('rpt-to') ? $('rpt-to').value : '';
+    var params = [];
+    if (from) params.push('start_date=' + from);
+    if (to) params.push('end_date=' + to);
+    var url = '/api/reports/profit-loss' + (params.length ? '?' + params.join('&') : '');
+    var d = await api(url);
     var h = '';
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-indigo-700 mb-2">Revenue</h4>';
-    h += '<div class="flex justify-between"><span>Sales Revenue:</span><span class="font-bold">' + fmt(d.revenue) + '</span></div>';
-    h += '<div class="flex justify-between"><span>GST Collected:</span><span class="font-bold">' + fmt(d.gst) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Units Sold:</span><span class="font-bold">' + d.units + '</span></div></div>';
 
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-red-700 mb-2">Cost of Goods</h4>';
+    h += '<div class="grid grid-cols-3 gap-4 mb-6">';
+    h += '<div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200"><p class="text-sm text-indigo-600 font-medium">Total Orders</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-500">' + fmt(d.total_order_value) + ' value</p></div>';
+    h += '<div class="bg-green-50 rounded-lg p-4 border border-green-200"><p class="text-sm text-green-600 font-medium">Sales Revenue</p><p class="text-2xl font-bold">' + fmt(d.revenue) + '</p><p class="text-xs text-gray-500">' + d.units + ' units</p></div>';
+    h += '<div class="bg-orange-50 rounded-lg p-4 border border-orange-200"><p class="text-sm text-orange-600 font-medium">Freight Income</p><p class="text-2xl font-bold">' + fmt(d.freight_income) + '</p></div>';
+    h += '</div>';
+
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-indigo-700 mb-2"><i class="fas fa-chart-bar mr-2"></i>Sales Summary</h4>';
+    h += '<div class="flex justify-between"><span>Sales Revenue:</span><span class="font-bold">' + fmt(d.revenue) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Freight Income:</span><span class="font-bold">' + fmt(d.freight_income) + '</span></div>';
+    h += '<div class="flex justify-between"><span>GST Collected:</span><span class="font-bold">' + fmt(d.gst) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Units Sold:</span><span class="font-bold">' + d.units + '</span></div>';
+    h += '<div class="flex justify-between"><span>GP from Imports:</span><span class="font-bold">' + fmt(d.gp_total_from_csv) + '</span></div>';
+    if (d.gp_avg > 0) {
+        h += '<div class="flex justify-between"><span>Avg GP%:</span><span class="font-bold">' + d.gp_avg.toFixed(1) + '%</span></div>';
+    }
+    h += '</div>';
+
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-purple-700 mb-2"><i class="fas fa-clipboard-list mr-2"></i>Order Summary</h4>';
+    h += '<div class="flex justify-between"><span>Total Orders:</span><span class="font-bold">' + d.total_orders + '</span></div>';
+    h += '<div class="flex justify-between"><span>Total Order Value:</span><span class="font-bold">' + fmt(d.total_order_value) + '</span></div>';
+    h += '<div class="flex justify-between"><span>Order Freight:</span><span class="font-bold">' + fmt(d.total_order_freight) + '</span></div>';
+    h += '</div>';
+
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-red-700 mb-2"><i class="fas fa-receipt mr-2"></i>Cost of Goods</h4>';
     h += '<div class="flex justify-between"><span>COGS:</span><span class="font-bold text-red-600">' + fmt(d.cogs) + '</span></div></div>';
 
     var gpC = d.gross_profit >= 0 ? 'text-green-600' : 'text-red-600';
@@ -396,9 +442,13 @@ async function loadReport() {
     h += '<div class="flex justify-between text-lg"><span>Amount:</span><span class="font-bold ' + gpC + '">' + fmt(d.gross_profit) + '</span></div>';
     h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.gross_margin.toFixed(1) + '%</span></div></div>';
 
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-orange-700 mb-2">Operating Expenses</h4>';
+    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-orange-700 mb-2"><i class="fas fa-building mr-2"></i>Operating Expenses</h4>';
     var keys = Object.keys(d.expenses || {});
-    keys.forEach(function(k) { h += '<div class="flex justify-between"><span>' + k + ':</span><span class="text-red-600">' + fmt(d.expenses[k]) + '</span></div>'; });
+    if (keys.length) {
+        keys.forEach(function(k) { h += '<div class="flex justify-between"><span>' + k + ':</span><span class="text-red-600">' + fmt(d.expenses[k]) + '</span></div>'; });
+    } else {
+        h += '<p class="text-gray-400 text-sm">No expenses recorded</p>';
+    }
     h += '<div class="flex justify-between border-t pt-1 mt-1 font-bold"><span>Total OpEx:</span><span class="text-red-600">' + fmt(d.total_opex) + '</span></div></div>';
 
     var ebC = d.ebitda >= 0 ? 'text-green-600' : 'text-red-600';
@@ -406,13 +456,14 @@ async function loadReport() {
     h += '<div class="flex justify-between text-lg"><span>Amount:</span><span class="font-bold ' + ebC + '">' + fmt(d.ebitda) + '</span></div>';
     h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.ebitda_margin.toFixed(1) + '%</span></div></div>';
 
-    var paC = d.pat >= 0 ? 'text-green-400' : 'text-red-400';
+    var paC = d.pat >= 0 ? 'text-green-600' : 'text-red-600';
     h += '<div class="p-4 bg-gray-900 text-white rounded-lg"><h4 class="font-bold mb-2">Profit After Tax</h4>';
     h += '<div class="flex justify-between"><span>PBT:</span><span class="font-bold">' + fmt(d.ebitda) + '</span></div>';
     h += '<div class="flex justify-between"><span>Tax @ ' + d.tax_rate + '%:</span><span class="text-red-400">' + fmt(d.tax) + '</span></div>';
     h += '<div class="flex justify-between border-t pt-1 mt-1 text-xl"><span>PAT:</span><span class="font-bold ' + paC + '">' + fmt(d.pat) + '</span></div></div>';
 
     $('rpt-body').innerHTML = h;
+    } catch(e) { console.error('Report error:', e); $('rpt-body').innerHTML = '<p class="text-red-500">Error loading report</p>'; }
 }
 
 // ---- FORM HANDLERS ----
@@ -691,6 +742,70 @@ async function importSalesCSV(input) {
         if (!r.ok) throw new Error(d.detail || 'Import failed');
         toast(d.message);
         loadSales();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importProductsCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing products...');
+    try {
+        var r = await fetch('/api/import/products', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadProducts();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importCustomersCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing customers...');
+    try {
+        var r = await fetch('/api/import/customers', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadCustomers();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importTransportersCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing transporters...');
+    try {
+        var r = await fetch('/api/import/transporters', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadTransporters();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importExpensesCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing expenses...');
+    try {
+        var r = await fetch('/api/import/expenses', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadExpenses();
     } catch(e) { toast('Error: ' + e.message, true); }
     input.value = '';
 }

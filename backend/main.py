@@ -1055,10 +1055,15 @@ def profit_loss(start_date: str = None, end_date: str = None):
     try:
         sales = db.query(Sale).all()
         expenses = db.query(Expense).all()
+        orders = db.query(Order).all()
 
-        revenue = sum(s.total_amount for s in sales)
-        units = sum(s.quantity for s in sales)
-        gst = sum(s.cgst_amount + s.sgst_amount for s in sales)
+        revenue = sum(s.total_amount or 0 for s in sales)
+        freight_income = sum(s.freight_amount or 0 for s in sales)
+        units = sum(s.quantity or 0 for s in sales)
+        gst = sum((s.cgst_amount or 0) + (s.sgst_amount or 0) for s in sales)
+        gp_total = sum(s.gp or 0 for s in sales)
+        gp_values = [s.gp_percent for s in sales if s.gp_percent and s.gp_percent > 0]
+        gp_avg = sum(gp_values) / len(gp_values) if gp_values else 0
 
         avg_cost = db.query(Pricing.total_cost).filter(Pricing.total_cost > 0).all()
         avg = sum(a[0] for a in avg_cost) / len(avg_cost) if avg_cost else 0
@@ -1069,18 +1074,25 @@ def profit_loss(start_date: str = None, end_date: str = None):
             exp_by_cat[e.category] = exp_by_cat.get(e.category, 0) + e.amount
         total_opex = sum(exp_by_cat.values())
 
+        total_order_value = sum(o.invoice_amount or 0 for o in orders)
+        total_order_freight = sum(o.transport_charges or 0 for o in orders)
+
         gp = revenue - cogs
         ebitda = gp - total_opex
         tax = ebitda * 0.25 if ebitda > 0 else 0
         pat = ebitda - tax
 
         return {
-            "revenue": revenue, "gst": gst, "units": units,
+            "revenue": revenue, "freight_income": freight_income,
+            "gst": gst, "units": units,
             "cogs": cogs, "gross_profit": gp,
             "gross_margin": (gp / revenue * 100) if revenue else 0,
+            "gp_total_from_csv": gp_total, "gp_avg": gp_avg,
             "expenses": exp_by_cat, "total_opex": total_opex,
             "ebitda": ebitda, "ebitda_margin": (ebitda / revenue * 100) if revenue else 0,
-            "tax_rate": 25, "tax": tax, "pat": pat
+            "tax_rate": 25, "tax": tax, "pat": pat,
+            "total_orders": len(orders), "total_order_value": total_order_value,
+            "total_order_freight": total_order_freight,
         }
     finally:
         db.close()
@@ -1091,19 +1103,50 @@ def profit_loss(start_date: str = None, end_date: str = None):
 def dashboard():
     db = SessionLocal()
     try:
+        all_sales = db.query(Sale).all()
+        all_orders = db.query(Order).all()
+
+        revenue = sum(s.total_amount or 0 for s in all_sales)
+        freight = sum(s.freight_amount or 0 for s in all_sales)
+        gp_total = sum(s.gp or 0 for s in all_sales)
+        pending = sum(s.total_amount or 0 for s in all_sales if s.payment_status == "Pending")
+        total_order_value = sum(o.invoice_amount or 0 for o in all_orders)
+
+        recent_sales = []
+        for s in db.query(Sale).order_by(Sale.sale_date.desc()).limit(5).all():
+            cust_name = ""
+            if s.customer_id:
+                cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
+                cust_name = cust.contact_name if cust else ""
+            recent_sales.append({
+                "id": s.id, "invoice": s.invoice_no or "",
+                "customer": s.party_name or cust_name or "",
+                "amount": s.total_amount or 0, "status": s.payment_status or "",
+                "date": s.sale_date.strftime("%d %b %Y") if s.sale_date else ""
+            })
+
+        recent_orders = []
+        for o in db.query(Order).order_by(Order.id.desc()).limit(5).all():
+            recent_orders.append({
+                "id": o.id, "sl_no": o.sl_no or 0,
+                "po_no": o.po_no or "", "billing_site": o.billing_site or "",
+                "invoice_no": o.invoice_no or "",
+                "invoice_amount": o.invoice_amount or 0,
+                "entry_date": o.entry_date or ""
+            })
+
         return {
             "total_products": db.query(Product).count(),
             "total_customers": db.query(Customer).count(),
+            "total_orders": db.query(Order).count(),
             "total_sales": db.query(Sale).count(),
-            "revenue": sum(s.total_amount for s in db.query(Sale).all()),
-            "pending": sum(s.total_amount for s in db.query(Sale).filter(Sale.payment_status == "Pending").all()),
-            "recent_sales": [
-                {"id": s.id, "invoice": s.invoice_no,
-                 "customer": (db.query(Customer).filter(Customer.id == s.customer_id).first() or type("", (), {"contact_name": "?"})()).contact_name,
-                 "amount": s.total_amount, "status": s.payment_status,
-                 "date": s.sale_date.strftime("%d %b") if s.sale_date else ""}
-                for s in db.query(Sale).order_by(Sale.sale_date.desc()).limit(5).all()
-            ]
+            "revenue": revenue,
+            "freight": freight,
+            "gp_total": gp_total,
+            "pending": pending,
+            "total_order_value": total_order_value,
+            "recent_sales": recent_sales,
+            "recent_orders": recent_orders,
         }
     finally:
         db.close()
@@ -1274,6 +1317,217 @@ async def import_sales_csv(file: UploadFile = File(...)):
             imported += 1
         db.commit()
         return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} sales, skipped {skipped}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
+
+
+def map_csv_col(row, keys, default=""):
+    for k in keys:
+        v = row.get(k, "")
+        if v and v.strip() and v.strip() not in ('-', '–'):
+            return v.strip()
+    return default
+
+
+@app.post("/api/import/products")
+async def import_products_csv(file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    import csv, io
+    reader = csv.DictReader(io.StringIO(text))
+    db = SessionLocal()
+    imported = 0
+    skipped = 0
+    try:
+        for row in reader:
+            name = map_csv_col(row, ['Name', 'Description', 'Product Name', 'name', 'description'])
+            if not name:
+                skipped += 1
+                continue
+            part_no = map_csv_col(row, ['Part No', 'Part Number', 'SKU', 'part_no'])
+            category = map_csv_col(row, ['Category', 'category'], 'Manhole Cover')
+            size = map_csv_col(row, ['Size', 'size'])
+            load_rating = map_csv_col(row, ['Load Rating', 'Load', 'load_rating'], '5 Ton')
+            material = map_csv_col(row, ['Material', 'material'], 'FRP')
+            color = map_csv_col(row, ['Color', 'color'], 'Grey')
+            unit = map_csv_col(row, ['Unit', 'unit'], 'Nos')
+            hsn_code = map_csv_col(row, ['HSN Code', 'HSN', 'hsn_code'])
+            mrp = parse_csv_amount(map_csv_col(row, ['MRP', 'Price', 'mrp'], '0'))
+
+            if part_no:
+                existing = db.query(Product).filter(Product.part_no == part_no).first()
+                if existing:
+                    existing.name = name
+                    existing.category = category
+                    existing.size = size
+                    existing.load_rating = load_rating
+                    existing.material = material
+                    existing.color = color
+                    existing.unit = unit
+                    existing.hsn_code = hsn_code
+                    if mrp and existing.pricing:
+                        existing.pricing.mrp = mrp
+                        existing.pricing.raw_material_cost = mrp
+                        existing.pricing.total_cost = mrp
+                    imported += 1
+                    continue
+
+            p = Product(part_no=part_no, name=name, category=category,
+                        size=size, load_rating=load_rating, material=material,
+                        color=color, unit=unit, hsn_code=hsn_code)
+            db.add(p)
+            db.flush()
+            db.add(Pricing(product_id=p.id, raw_material_cost=mrp, total_cost=mrp, mrp=mrp))
+            imported += 1
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} products, skipped {skipped}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/import/customers")
+async def import_customers_csv(file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    import csv, io
+    reader = csv.DictReader(io.StringIO(text))
+    db = SessionLocal()
+    imported = 0
+    skipped = 0
+    try:
+        for row in reader:
+            customer_id = map_csv_col(row, ['Customer ID', 'ID', 'Cust ID', 'customer_id'])
+            if not customer_id:
+                skipped += 1
+                continue
+            existing = db.query(Customer).filter(Customer.customer_id == customer_id).first()
+            data = {
+                "customer_id": customer_id,
+                "gstin": map_csv_col(row, ['GSTIN', 'GST Number', 'GST', 'gstin']),
+                "billing_address": map_csv_col(row, ['Billing Address', 'Address', 'billing_address']),
+                "shipping_address": map_csv_col(row, ['Shipping Address', 'shipping_address']),
+                "state": map_csv_col(row, ['State', 'state']),
+                "district": map_csv_col(row, ['District', 'district']),
+                "city": map_csv_col(row, ['City', 'city']),
+                "pincode": map_csv_col(row, ['Pincode', 'Pin Code', 'ZIP', 'pincode']),
+                "contact_name": map_csv_col(row, ['Contact Name', 'Name', 'contact_name']),
+                "contact_number": map_csv_col(row, ['Contact Number', 'Phone', 'Mobile', 'contact_number']),
+                "contact_email": map_csv_col(row, ['Contact Email', 'Email', 'contact_email']),
+                "exec_code": map_csv_col(row, ['Executive Code', 'Exec Code', 'exec_code']),
+                "exec_name": map_csv_col(row, ['Executive Name', 'Exec Name', 'exec_name']),
+                "exec_number": map_csv_col(row, ['Executive Number', 'Exec Number', 'exec_number']),
+                "exec_email": map_csv_col(row, ['Executive Email', 'Exec Email', 'exec_email']),
+            }
+            if existing:
+                for k, v in data.items():
+                    if k != "customer_id":
+                        setattr(existing, k, v)
+            else:
+                c = Customer(**data)
+                db.add(c)
+            imported += 1
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} customers, skipped {skipped}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/import/transporters")
+async def import_transporters_csv(file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    import csv, io
+    reader = csv.DictReader(io.StringIO(text))
+    db = SessionLocal()
+    imported = 0
+    skipped = 0
+    try:
+        for row in reader:
+            transporter_id = map_csv_col(row, ['Transporter ID', 'ID', 'transporter_id'])
+            name = map_csv_col(row, ['Name', 'Transporter Name', 'name'])
+            if not transporter_id or not name:
+                skipped += 1
+                continue
+            existing = db.query(Transporter).filter(Transporter.transporter_id == transporter_id).first()
+            data = {
+                "transporter_id": transporter_id,
+                "name": name,
+                "phone": map_csv_col(row, ['Phone', 'Mobile', 'phone']),
+                "email": map_csv_col(row, ['Email', 'email']),
+                "address": map_csv_col(row, ['Address', 'address']),
+                "state": map_csv_col(row, ['State', 'state']),
+                "district": map_csv_col(row, ['District', 'district']),
+                "city": map_csv_col(row, ['City', 'city']),
+                "pincode": map_csv_col(row, ['Pincode', 'Pin Code', 'pincode']),
+                "gst_number": map_csv_col(row, ['GST Number', 'GSTIN', 'GST', 'gst_number']),
+                "pan_number": map_csv_col(row, ['PAN Number', 'PAN', 'pan_number']),
+                "contact_person": map_csv_col(row, ['Contact Person', 'contact_person']),
+                "contact_number": map_csv_col(row, ['Contact Number', 'contact_number']),
+            }
+            if existing:
+                for k, v in data.items():
+                    if k != "transporter_id":
+                        setattr(existing, k, v)
+            else:
+                t = Transporter(**data)
+                db.add(t)
+            imported += 1
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} transporters, skipped {skipped}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/import/expenses")
+async def import_expenses_csv(file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    import csv, io
+    reader = csv.DictReader(io.StringIO(text))
+    db = SessionLocal()
+    imported = 0
+    skipped = 0
+    try:
+        for row in reader:
+            category = map_csv_col(row, ['Category', 'category'])
+            amount_raw = map_csv_col(row, ['Amount', 'amount'], '0')
+            amount = parse_csv_amount(amount_raw)
+            if not category or amount == 0:
+                skipped += 1
+                continue
+            date_str = map_csv_col(row, ['Date', 'Expense Date', 'expense_date'])
+            dt = None
+            if date_str:
+                try:
+                    from dateutil import parser as dateparser
+                    dt = dateparser.parse(date_str, dayfirst=False)
+                except Exception:
+                    pass
+            if not dt:
+                dt = datetime.utcnow()
+            e = Expense(
+                category=category,
+                description=map_csv_col(row, ['Description', 'description']),
+                amount=amount,
+                vendor=map_csv_col(row, ['Vendor', 'vendor']),
+                expense_date=dt
+            )
+            db.add(e)
+            imported += 1
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} expenses, skipped {skipped}"}
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Import failed: {str(e)}")

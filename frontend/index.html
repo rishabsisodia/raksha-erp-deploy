@@ -35,15 +35,15 @@
         </header>
 
         <div id="p-dashboard">
-            <div class="grid grid-cols-4 gap-4 mb-6" id="dash-cards"></div>
+            <div class="grid grid-cols-3 gap-4 mb-6" id="dash-cards"></div>
             <div class="grid grid-cols-2 gap-6">
                 <div class="bg-white rounded-xl shadow p-5">
-                    <h3 class="font-bold mb-3"><i class="fas fa-clock text-indigo-600 mr-2"></i>Recent Sales</h3>
-                    <div id="dash-recent"></div>
+                    <h3 class="font-bold mb-3"><i class="fas fa-clipboard-list text-purple-600 mr-2"></i>Recent Orders</h3>
+                    <div id="dash-orders"></div>
                 </div>
                 <div class="bg-white rounded-xl shadow p-5">
-                    <h3 class="font-bold mb-3"><i class="fas fa-info-circle text-blue-600 mr-2"></i>Pending Payments</h3>
-                    <div id="dash-pending"></div>
+                    <h3 class="font-bold mb-3"><i class="fas fa-clock text-green-600 mr-2"></i>Recent Sales</h3>
+                    <div id="dash-recent"></div>
                 </div>
             </div>
         </div>
@@ -52,7 +52,10 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Products</h3>
-                    <button onclick="showModal('m-product')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Product</button>
+                    <div class="flex gap-2">
+                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importProductsCSV(this)"></label>
+                        <button onclick="showModal('m-product')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Product</button>
+                    </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
                     <th class="px-3 py-2 text-left">ID</th><th class="px-3 py-2 text-left">Part No.</th>
@@ -95,7 +98,10 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Customers</h3>
-                    <button onclick="showModal('m-customer')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Customer</button>
+                    <div class="flex gap-2">
+                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importCustomersCSV(this)"></label>
+                        <button onclick="showModal('m-customer')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Customer</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -113,7 +119,10 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Transporters</h3>
-                    <button onclick="showModal('m-transporter')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Transporter</button>
+                    <div class="flex gap-2">
+                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importTransportersCSV(this)"></label>
+                        <button onclick="showModal('m-transporter')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Transporter</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -150,7 +159,10 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Expenses</h3>
-                    <button onclick="showModal('m-expense')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Expense</button>
+                    <div class="flex gap-2">
+                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importExpensesCSV(this)"></label>
+                        <button onclick="showModal('m-expense')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Expense</button>
+                    </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
                     <th class="px-3 py-2 text-left">Date</th><th class="px-3 py-2 text-left">Category</th>
@@ -162,7 +174,15 @@
 
         <div id="p-reports" class="hidden">
             <div class="bg-white rounded-xl shadow p-5">
-                <h3 class="font-bold mb-4">Profit & Loss Statement</h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold">Business Reports</h3>
+                    <div class="flex gap-2 items-center">
+                        <input type="date" id="rpt-from" class="border rounded px-3 py-2 text-sm">
+                        <span class="text-gray-500">to</span>
+                        <input type="date" id="rpt-to" class="border rounded px-3 py-2 text-sm">
+                        <button onclick="loadReport()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700"><i class="fas fa-filter mr-1"></i>Filter</button>
+                    </div>
+                </div>
                 <div id="rpt-body"></div>
             </div>
         </div>
