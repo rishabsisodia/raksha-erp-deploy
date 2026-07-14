@@ -309,7 +309,7 @@
     </div>
 
     <div id="m-proforma-order" class="modal-bg hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-        <div class="bg-white rounded-xl w-full max-w-6xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-xl w-full max-w-[95vw] mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="p-5 border-b flex justify-between sticky top-0 bg-white z-10">
                 <h3 class="font-bold text-lg" id="m-po-title">New PI/PO Order</h3>
                 <button onclick="hideModal('m-proforma-order')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button>
@@ -328,39 +328,39 @@
                         <h4 class="font-semibold text-sm">Line Items</h4>
                         <button type="button" onclick="addProformaItem()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"><i class="fas fa-plus mr-1"></i>Add Item</button>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs" id="po-items-table">
-                            <thead class="bg-gray-50">
+                    <div class="overflow-x-auto" style="max-height:350px;overflow-y:auto;">
+                        <table class="w-full text-sm" id="po-items-table" style="min-width:1400px;">
+                            <thead class="bg-gray-50 sticky top-0 z-[1]">
                                 <tr>
-                                    <th class="px-2 py-1 text-left w-8">#</th>
-                                    <th class="px-2 py-1 text-left min-w-200">Product *</th>
-                                    <th class="px-2 py-1 text-left w-20">Part No</th>
-                                    <th class="px-2 py-1 text-left w-16">Size</th>
-                                    <th class="px-2 py-1 text-left w-20">Category</th>
-                                    <th class="px-2 py-1 text-center w-12">Boxes</th>
-                                    <th class="px-2 py-1 text-center w-16">Std Pkg</th>
-                                    <th class="px-2 py-1 text-center w-16">Pcs/Box</th>
-                                    <th class="px-2 py-1 text-center w-12">Qty</th>
-                                    <th class="px-2 py-1 text-right w-20">MRP</th>
-                                    <th class="px-2 py-1 text-center w-10">D1%</th>
-                                    <th class="px-2 py-1 text-center w-10">D2%</th>
-                                    <th class="px-2 py-1 text-center w-10">D3%</th>
-                                    <th class="px-2 py-1 text-center w-10">D4%</th>
-                                    <th class="px-2 py-1 text-center w-10">D5%</th>
-                                    <th class="px-2 py-1 text-center w-10">CD%</th>
-                                    <th class="px-2 py-1 text-right w-20">Net Rate</th>
-                                    <th class="px-2 py-1 text-center w-12">Lock/Hinge</th>
-                                    <th class="px-2 py-1 text-right w-24">Amount</th>
-                                    <th class="px-2 py-1 text-center w-10"></th>
+                                    <th style="padding:6px 4px;width:30px;">#</th>
+                                    <th style="padding:6px 4px;width:180px;text-align:left;">Product *</th>
+                                    <th style="padding:6px 4px;width:80px;text-align:left;">Part No</th>
+                                    <th style="padding:6px 4px;width:60px;text-align:left;">Size</th>
+                                    <th style="padding:6px 4px;width:70px;text-align:left;">Category</th>
+                                    <th style="padding:6px 4px;width:55px;text-align:center;">Boxes</th>
+                                    <th style="padding:6px 4px;width:55px;text-align:center;">Std Pkg</th>
+                                    <th style="padding:6px 4px;width:55px;text-align:center;">Pcs/Box</th>
+                                    <th style="padding:6px 4px;width:50px;text-align:center;">Qty</th>
+                                    <th style="padding:6px 4px;width:75px;text-align:right;">MRP</th>
+                                    <th style="padding:6px 4px;width:45px;text-align:center;">D1%</th>
+                                    <th style="padding:6px 4px;width:45px;text-align:center;">D2%</th>
+                                    <th style="padding:6px 4px;width:45px;text-align:center;">D3%</th>
+                                    <th style="padding:6px 4px;width:45px;text-align:center;">D4%</th>
+                                    <th style="padding:6px 4px;width:45px;text-align:center;">D5%</th>
+                                    <th style="padding:6px 4px;width:45px;text-align:center;">CD%</th>
+                                    <th style="padding:6px 4px;width:80px;text-align:right;">Net Rate</th>
+                                    <th style="padding:6px 4px;width:60px;text-align:center;">L/H</th>
+                                    <th style="padding:6px 4px;width:90px;text-align:right;">Amount</th>
+                                    <th style="padding:6px 4px;width:35px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="po-items-body"></tbody>
                             <tfoot class="bg-gray-50 font-bold">
                                 <tr>
-                                    <td colspan="12" class="px-2 py-2 text-right">Total:</td>
-                                    <td class="px-2 py-2 text-right" id="po-total-qty">0</td>
-                                    <td colspan="5"></td>
-                                    <td class="px-2 py-2 text-right text-green-600" id="po-total-amount">₹0.00</td>
+                                    <td colspan="8" style="padding:8px;text-align:right;">Total:</td>
+                                    <td style="padding:8px;text-align:center;" id="po-total-qty">0</td>
+                                    <td colspan="8"></td>
+                                    <td style="padding:8px;text-align:right;color:#16a34a;" id="po-total-amount">₹0.00</td>
                                     <td></td>
                                 </tr>
                             </tfoot>

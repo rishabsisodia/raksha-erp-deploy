@@ -15,7 +15,7 @@ function go(page, el) {
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
-    if (page === 'orders') { loadOrders(); loadProformaOrders(); }
+    if (page === 'orders') { loadOrders(); try { loadProformaOrders(); } catch(e) {} }
     if (page === 'customers') loadCustomers();
     if (page === 'transporters') loadTransporters();
     if (page === 'sales') loadSales();
@@ -295,11 +295,11 @@ async function deleteCustomer(id) {
     loadCustomers();
 }
 
-$('f-csameaddr').addEventListener('change', function() {
+try { $('f-csameaddr').addEventListener('change', function() {
     if (this.checked) {
         $('f-cshipaddr').value = $('f-cbilladdr').value;
     }
-});
+}); } catch(e) {}
 
 async function loadSales() {
     try {
@@ -1041,26 +1041,26 @@ function renderProformaItems() {
             prodOpts += '<option value="' + p.id + '"' + (item.product_id == p.id ? ' selected' : '') + '>' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ')</option>';
         });
         h += '<tr class="border-b">';
-        h += '<td class="px-2 py-1">' + (idx + 1) + '</td>';
-        h += '<td class="px-2 py-1"><select class="w-full border rounded px-1 py-1 text-xs" onchange="onProformaProductChange(' + idx + ', this.value)">' + prodOpts + '</select></td>';
-        h += '<td class="px-2 py-1"><input type="text" value="' + (item.part_no || '') + '" class="w-full border rounded px-1 py-1 text-xs" onchange="updateProformaItem(' + idx + ', \'part_no\', this.value)"></td>';
-        h += '<td class="px-2 py-1"><input type="text" value="' + (item.size || '') + '" class="w-full border rounded px-1 py-1 text-xs" onchange="updateProformaItem(' + idx + ', \'size\', this.value)"></td>';
-        h += '<td class="px-2 py-1"><input type="text" value="' + (item.category || '') + '" class="w-full border rounded px-1 py-1 text-xs" onchange="updateProformaItem(' + idx + ', \'category\', this.value)"></td>';
-        h += '<td class="px-2 py-1"><input type="number" value="' + item.qty_boxes + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'qty_boxes\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" value="' + item.std_packaging + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'std_packaging\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" value="' + item.pieces_per_box + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'pieces_per_box\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1 font-bold">' + item.final_qty + '</td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.mrp + '" class="w-full border rounded px-1 py-1 text-xs text-right" onchange="updateProformaItem(' + idx + ', \'mrp\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d1 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d1\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d2 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d2\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d3 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d3\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d4 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d4\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d5 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d5\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.cd + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'cd\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1 font-bold text-right">' + fmt(item.net_rate) + '</td>';
-        h += '<td class="px-2 py-1"><input type="number" value="' + item.lock_hinge + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'lock_hinge\', parseInt(this.value)||0); calcProformaItemAmount(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td class="px-2 py-1 font-bold text-right text-green-600">' + fmt(item.basic_amount) + '</td>';
-        h += '<td class="px-2 py-1 text-center"><button type="button" onclick="removeProformaItem(' + idx + ')" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button></td>';
+        h += '<td style="padding:4px;width:30px;">' + (idx + 1) + '</td>';
+        h += '<td style="padding:4px;width:180px;"><select style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;" onchange="onProformaProductChange(' + idx + ', this.value)">' + prodOpts + '</select></td>';
+        h += '<td style="padding:4px;width:80px;"><input type="text" value="' + (item.part_no || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;" onchange="updateProformaItem(' + idx + ', \'part_no\', this.value)"></td>';
+        h += '<td style="padding:4px;width:60px;"><input type="text" value="' + (item.size || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;" onchange="updateProformaItem(' + idx + ', \'size\', this.value)"></td>';
+        h += '<td style="padding:4px;width:70px;"><input type="text" value="' + (item.category || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;" onchange="updateProformaItem(' + idx + ', \'category\', this.value)"></td>';
+        h += '<td style="padding:4px;width:55px;"><input type="number" value="' + item.qty_boxes + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'qty_boxes\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:55px;"><input type="number" value="' + item.std_packaging + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'std_packaging\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:55px;"><input type="number" value="' + item.pieces_per_box + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'pieces_per_box\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:50px;font-weight:bold;text-align:center;">' + item.final_qty + '</td>';
+        h += '<td style="padding:4px;width:75px;"><input type="number" step="0.01" value="' + item.mrp + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:right;" onchange="updateProformaItem(' + idx + ', \'mrp\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:45px;"><input type="number" step="0.01" value="' + item.d1 + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d1\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:45px;"><input type="number" step="0.01" value="' + item.d2 + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d2\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:45px;"><input type="number" step="0.01" value="' + item.d3 + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d3\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:45px;"><input type="number" step="0.01" value="' + item.d4 + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d4\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:45px;"><input type="number" step="0.01" value="' + item.d5 + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d5\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:45px;"><input type="number" step="0.01" value="' + item.cd + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'cd\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:80px;font-weight:bold;text-align:right;">' + fmt(item.net_rate) + '</td>';
+        h += '<td style="padding:4px;width:60px;"><input type="number" value="' + item.lock_hinge + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'lock_hinge\', parseInt(this.value)||0); calcProformaItemAmount(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:90px;font-weight:bold;text-align:right;color:#16a34a;">' + fmt(item.basic_amount) + '</td>';
+        h += '<td style="padding:4px;width:35px;text-align:center;"><button type="button" onclick="removeProformaItem(' + idx + ')" style="color:#ef4444;border:none;background:none;cursor:pointer;font-size:14px;"><i class="fas fa-times"></i></button></td>';
         h += '</tr>';
     });
     $('po-items-body').innerHTML = h;
@@ -1277,8 +1277,9 @@ function generateProformaPDF() {
 }
 
 // ---- INIT ----
-$('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-$('f-edate').value = new Date().toISOString().split('T')[0];
+// ---- INIT ----
+try { $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}); } catch(e) {}
+try { $('f-edate').value = new Date().toISOString().split('T')[0]; } catch(e) {}
 loadDashboard();
 
 // ---- SETTINGS ----
