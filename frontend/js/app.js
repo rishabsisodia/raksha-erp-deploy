@@ -1,6 +1,8 @@
 var INR = '\u20B9';
 var _products = [];
 var _customers = [];
+var _proformaItems = [];
+var _editingProformaId = null;
 
 function $(id) { return document.getElementById(id); }
 
@@ -9,11 +11,12 @@ function go(page, el) {
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
     $('p-' + page).classList.remove('hidden');
     if (el) el.classList.add('bg-indigo-700');
-    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
+    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders','proforma-orders':'PI/PO Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
     if (page === 'orders') loadOrders();
+    if (page === 'proforma-orders') loadProformaOrders();
     if (page === 'customers') loadCustomers();
     if (page === 'transporters') loadTransporters();
     if (page === 'sales') loadSales();
@@ -54,6 +57,7 @@ async function refreshDropdowns() {
     _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + c.customer_id + ' - ' + c.contact_name + '</option>'; });
     if ($('f-slprod')) $('f-slprod').innerHTML = po;
     if ($('f-slcust')) $('f-slcust').innerHTML = co;
+    if ($('f-poocust')) $('f-poocust').innerHTML = co;
 }
 function hideModal(id) { $(id).classList.add('hidden'); }
 
@@ -887,6 +891,390 @@ async function importExpensesCSV(input) {
         loadExpenses();
     } catch(e) { toast('Error: ' + e.message, true); }
     input.value = '';
+}
+
+// ---- PROFORMA ORDERS (PI/PO) ----
+async function loadProformaOrders() {
+    var filter = $('f-pofilter') ? $('f-pofilter').value : '';
+    var url = '/api/proforma-orders' + (filter ? '?order_type=' + filter : '');
+    var orders = await api(url);
+    var h = '';
+    orders.forEach(function(o) {
+        h += '<tr class="border-b hover:bg-gray-50">';
+        h += '<td class="px-3 py-2 font-medium">' + o.pi_no + '</td>';
+        h += '<td class="px-3 py-2">' + (o.pi_date ? o.pi_date.substring(0, 10) : '-') + '</td>';
+        h += '<td class="px-3 py-2">' + o.customer_name + '</td>';
+        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs ' + (o.order_type === 'PI' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700') + '">' + o.order_type + '</span></td>';
+        h += '<td class="px-3 py-2">' + o.item_count + '</td>';
+        h += '<td class="px-3 py-2 font-bold">' + fmt(o.total_amount) + '</td>';
+        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs ' + (o.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : o.payment_status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700') + '">' + o.payment_status + '</span></td>';
+        h += '<td class="px-3 py-2">';
+        h += '<button onclick="editProformaOrder(' + o.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="viewProformaOrder(' + o.id + ')" class="text-green-600 hover:text-green-800 mr-2" title="View"><i class="fas fa-eye"></i></button>';
+        h += '<button onclick="deleteProformaOrder(' + o.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '</td></tr>';
+    });
+    $('t-proforma-orders').innerHTML = h || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No PI/PO orders</td></tr>';
+}
+
+async function showProformaOrderModal() {
+    _editingProformaId = null;
+    _proformaItems = [];
+    $('f-pooid').value = '';
+    $('m-po-title').textContent = 'New PI/PO Order';
+    await refreshDropdowns();
+    addProformaItem();
+    $('m-proforma-order').classList.remove('hidden');
+}
+
+async function editProformaOrder(id) {
+    var order = await api('/api/proforma-orders/' + id);
+    _editingProformaId = id;
+    $('f-pooid').value = id;
+    $('f-pootype').value = order.order_type;
+    $('f-poobilling').value = order.billing_site || '';
+    $('f-pooshipping').value = order.shipping_site || '';
+    $('f-poofreight').value = order.freight_amount || 0;
+    $('f-poopaystatus').value = order.payment_status;
+    $('f-poopaymethod').value = order.payment_method;
+    $('f-poodelivery').value = order.delivery_days || 30;
+    $('f-poonotes').value = order.notes || '';
+    $('m-po-title').textContent = 'Edit Order - ' + order.pi_no;
+
+    await refreshDropdowns();
+    $('f-poocust').value = order.customer_id;
+
+    _proformaItems = order.items.map(function(item) {
+        return {
+            product_id: item.product_id,
+            part_no: item.part_no,
+            description: item.description,
+            size: item.size,
+            category: item.category,
+            qty_boxes: item.qty_boxes,
+            std_packaging: item.std_packaging,
+            pieces_per_box: item.pieces_per_box,
+            final_qty: item.final_qty,
+            mrp: item.mrp,
+            d1: item.d1, d2: item.d2, d3: item.d3, d4: item.d4, d5: item.d5,
+            cd: item.cd,
+            discount_percent: item.discount_percent,
+            net_rate: item.net_rate,
+            lock_hinge: item.lock_hinge,
+            basic_amount: item.basic_amount
+        };
+    });
+    renderProformaItems();
+    calcProformaTotals();
+    $('m-proforma-order').classList.remove('hidden');
+}
+
+async function viewProformaOrder(id) {
+    var order = await api('/api/proforma-orders/' + id);
+    _editingProformaId = id;
+    $('f-pooid').value = id;
+    $('f-pootype').value = order.order_type;
+    $('f-poobilling').value = order.billing_site || '';
+    $('f-pooshipping').value = order.shipping_site || '';
+    $('f-poofreight').value = order.freight_amount || 0;
+    $('f-poopaystatus').value = order.payment_status;
+    $('f-poopaymethod').value = order.payment_method;
+    $('f-poodelivery').value = order.delivery_days || 30;
+    $('f-poonotes').value = order.notes || '';
+    $('m-po-title').textContent = 'View Order - ' + order.pi_no;
+
+    await refreshDropdowns();
+    $('f-poocust').value = order.customer_id;
+
+    _proformaItems = order.items.map(function(item) {
+        return {
+            product_id: item.product_id,
+            part_no: item.part_no,
+            description: item.description,
+            size: item.size,
+            category: item.category,
+            qty_boxes: item.qty_boxes,
+            std_packaging: item.std_packaging,
+            pieces_per_box: item.pieces_per_box,
+            final_qty: item.final_qty,
+            mrp: item.mrp,
+            d1: item.d1, d2: item.d2, d3: item.d3, d4: item.d4, d5: item.d5,
+            cd: item.cd,
+            discount_percent: item.discount_percent,
+            net_rate: item.net_rate,
+            lock_hinge: item.lock_hinge,
+            basic_amount: item.basic_amount
+        };
+    });
+    renderProformaItems();
+    calcProformaTotals();
+    $('m-proforma-order').classList.remove('hidden');
+}
+
+async function deleteProformaOrder(id) {
+    if (!confirm('Delete this order?')) return;
+    await api('/api/proforma-orders/' + id, {method: 'DELETE'});
+    toast('Order deleted');
+    loadProformaOrders();
+}
+
+function addProformaItem() {
+    _proformaItems.push({
+        product_id: 0, part_no: '', description: '', size: '', category: '',
+        qty_boxes: 1, std_packaging: 1, pieces_per_box: 1, final_qty: 0,
+        mrp: 0, d1: 0, d2: 0, d3: 0, d4: 0, d5: 0, cd: 0,
+        discount_percent: 0, net_rate: 0, lock_hinge: 0, basic_amount: 0
+    });
+    renderProformaItems();
+}
+
+function removeProformaItem(idx) {
+    _proformaItems.splice(idx, 1);
+    renderProformaItems();
+    calcProformaTotals();
+}
+
+function renderProformaItems() {
+    var h = '';
+    _proformaItems.forEach(function(item, idx) {
+        var prodOpts = '<option value="0">-- Select --</option>';
+        _products.forEach(function(p) {
+            prodOpts += '<option value="' + p.id + '"' + (item.product_id == p.id ? ' selected' : '') + '>' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ')</option>';
+        });
+        h += '<tr class="border-b">';
+        h += '<td class="px-2 py-1">' + (idx + 1) + '</td>';
+        h += '<td class="px-2 py-1"><select class="w-full border rounded px-1 py-1 text-xs" onchange="onProformaProductChange(' + idx + ', this.value)">' + prodOpts + '</select></td>';
+        h += '<td class="px-2 py-1"><input type="text" value="' + (item.part_no || '') + '" class="w-full border rounded px-1 py-1 text-xs" onchange="updateProformaItem(' + idx + ', \'part_no\', this.value)"></td>';
+        h += '<td class="px-2 py-1"><input type="text" value="' + (item.size || '') + '" class="w-full border rounded px-1 py-1 text-xs" onchange="updateProformaItem(' + idx + ', \'size\', this.value)"></td>';
+        h += '<td class="px-2 py-1"><input type="text" value="' + (item.category || '') + '" class="w-full border rounded px-1 py-1 text-xs" onchange="updateProformaItem(' + idx + ', \'category\', this.value)"></td>';
+        h += '<td class="px-2 py-1"><input type="number" value="' + item.qty_boxes + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'qty_boxes\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" value="' + item.std_packaging + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'std_packaging\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" value="' + item.pieces_per_box + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'pieces_per_box\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1 font-bold">' + item.final_qty + '</td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.mrp + '" class="w-full border rounded px-1 py-1 text-xs text-right" onchange="updateProformaItem(' + idx + ', \'mrp\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d1 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d1\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d2 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d2\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d3 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d3\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d4 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d4\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.d5 + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'d5\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1"><input type="number" step="0.01" value="' + item.cd + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'cd\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1 font-bold text-right">' + fmt(item.net_rate) + '</td>';
+        h += '<td class="px-2 py-1"><input type="number" value="' + item.lock_hinge + '" class="w-full border rounded px-1 py-1 text-xs text-center" onchange="updateProformaItem(' + idx + ', \'lock_hinge\', parseInt(this.value)||0); calcProformaItemAmount(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td class="px-2 py-1 font-bold text-right text-green-600">' + fmt(item.basic_amount) + '</td>';
+        h += '<td class="px-2 py-1 text-center"><button type="button" onclick="removeProformaItem(' + idx + ')" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button></td>';
+        h += '</tr>';
+    });
+    $('po-items-body').innerHTML = h;
+}
+
+function updateProformaItem(idx, field, value) {
+    _proformaItems[idx][field] = value;
+}
+
+async function onProformaProductChange(idx, pid) {
+    if (!pid || pid == 0) return;
+    try {
+        var details = await api('/api/products/' + pid + '/details');
+        _proformaItems[idx].product_id = details.id;
+        _proformaItems[idx].part_no = details.part_no || '';
+        _proformaItems[idx].description = details.name;
+        _proformaItems[idx].size = details.size;
+        _proformaItems[idx].category = details.category;
+        _proformaItems[idx].mrp = details.mrp;
+        _proformaItems[idx].std_packaging = details.std_packaging;
+        _proformaItems[idx].pieces_per_box = details.pieces_per_box;
+        calcProformaItemQty(idx);
+        calcProformaItemNetRate(idx);
+        calcProformaItemAmount(idx);
+        renderProformaItems();
+        calcProformaTotals();
+    } catch(e) {
+        console.error('Error fetching product details:', e);
+    }
+}
+
+function calcProformaItemQty(idx) {
+    var item = _proformaItems[idx];
+    item.final_qty = item.qty_boxes * item.pieces_per_box;
+}
+
+function calcProformaItemNetRate(idx) {
+    var item = _proformaItems[idx];
+    var rate = item.mrp;
+    var totalDisc = item.d1 + item.d2 + item.d3 + item.d4 + item.d5 + item.cd;
+    item.discount_percent = totalDisc;
+    item.net_rate = rate * (1 - totalDisc / 100);
+    calcProformaItemAmount(idx);
+}
+
+function calcProformaItemAmount(idx) {
+    var item = _proformaItems[idx];
+    var baseAmount = item.final_qty * item.net_rate;
+    var lockHingeAmount = item.lock_hinge * 100;
+    item.basic_amount = baseAmount + lockHingeAmount;
+}
+
+function calcProformaTotals() {
+    var totalQty = 0;
+    var totalAmount = 0;
+    _proformaItems.forEach(function(item) {
+        totalQty += item.final_qty || 0;
+        totalAmount += item.basic_amount || 0;
+    });
+    var freight = parseFloat($('f-poofreight').value) || 0;
+    var gst = totalAmount * 0.18;
+    var grandTotal = totalAmount + gst + freight;
+
+    $('po-total-qty').textContent = totalQty;
+    $('po-total-amount').textContent = fmt(totalAmount);
+    $('pov-subtotal').textContent = fmt(totalAmount);
+    $('pov-gst').textContent = fmt(gst);
+    $('pov-freight').textContent = fmt(freight);
+    $('pov-total').textContent = fmt(grandTotal);
+}
+
+$('f-proforma-order').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var data = {
+        customer_id: parseInt($('f-poocust').value),
+        billing_site: $('f-poobilling').value,
+        shipping_site: $('f-pooshipping').value,
+        freight_amount: parseFloat($('f-poofreight').value) || 0,
+        payment_status: $('f-poopaystatus').value,
+        payment_method: $('f-poopaymethod').value,
+        delivery_days: parseInt($('f-poodelivery').value) || 30,
+        notes: $('f-poonotes').value,
+        order_type: $('f-pootype').value,
+        items: _proformaItems.filter(function(item) { return item.product_id > 0; })
+    };
+    if (data.items.length === 0) {
+        toast('Please add at least one item', true);
+        return;
+    }
+    try {
+        var id = $('f-pooid').value;
+        if (id) {
+            await api('/api/proforma-orders/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            toast('Order updated!');
+        } else {
+            var res = await api('/api/proforma-orders', {method: 'POST', body: JSON.stringify(data)});
+            toast('Order created! ' + res.pi_no);
+        }
+        hideModal('m-proforma-order');
+        $('f-proforma-order').reset();
+        _editingProformaId = null;
+        _proformaItems = [];
+        loadProformaOrders();
+    } catch(e) {
+        toast('Error: ' + e.message, true);
+    }
+});
+
+function generateProformaPDF() {
+    var orderType = $('f-pootype').value;
+    var customerName = $('f-poocust').options[$('f-poocust').selectedIndex].text;
+    var piNo = $('f-pooid').value ? 'RFC/' + new Date().toISOString().slice(0,7).replace('-','') + '-' + $('f-pooid').value.padStart(3,'0') : 'NEW';
+    var piDate = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+    var billingSite = $('f-poobilling').value;
+    var shippingSite = $('f-pooshipping').value;
+
+    var itemsHtml = '';
+    var totalQty = 0;
+    var totalAmount = 0;
+    _proformaItems.forEach(function(item, idx) {
+        if (item.product_id <= 0) return;
+        totalQty += item.final_qty;
+        totalAmount += item.basic_amount;
+        itemsHtml += '<tr>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + (idx + 1) + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + (item.part_no || '-') + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + (item.description || '') + ' (' + (item.size || '') + ')</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' + fmt(item.mrp) + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + item.discount_percent + '%</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + item.std_packaging + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + item.final_qty + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' + fmt(item.net_rate) + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + item.lock_hinge + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:right;font-weight:bold;">' + fmt(item.basic_amount) + '</td>';
+        itemsHtml += '</tr>';
+    });
+
+    var freight = parseFloat($('f-poofreight').value) || 0;
+    var gst = totalAmount * 0.18;
+    var grandTotal = totalAmount + gst + freight;
+
+    var title = orderType === 'PI' ? 'PROFORMA INVOICE' : 'PURCHASE ORDER';
+
+    var html = '<!DOCTYPE html><html><head><title>' + title + '</title>';
+    html += '<style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}';
+    html += 'table{width:100%;border-collapse:collapse;}';
+    html += '.header{text-align:center;margin-bottom:20px;}';
+    html += '.header h1{margin:0;font-size:18px;color:#1a365d;}';
+    html += '.header p{margin:2px 0;color:#555;font-size:11px;}';
+    html += '.details{margin:15px 0;}';
+    html += '.details td{padding:3px 8px;font-size:11px;}';
+    html += '.totals{text-align:right;margin-top:10px;}';
+    html += '.totals td{padding:4px 8px;font-size:11px;}';
+    html += '.terms{margin-top:20px;font-size:10px;border-top:1px solid #ccc;padding-top:10px;}';
+    html += '@media print{body{margin:10mm;}}</style></head><body>';
+
+    html += '<div class="header">';
+    html += '<h1>RANA FORGING PVT LTD</h1>';
+    html += '<p>KHATU MOHAMADPUR, NH-8, JAIPUR-302012 (RAJ.)</p>';
+    html += '<p>Tel: 9928684835, 9672962255 | Email: ranaforging@gmail.com</p>';
+    html += '<p>GSTIN: 08AAFCT3014D1ZC | PAN: AAFCT3014D | State: RAJASTHAN (08)</p>';
+    html += '</div>';
+
+    html += '<div class="details"><table>';
+    html += '<tr><td style="font-weight:bold;width:120px;">' + (orderType === 'PI' ? 'Quotation No:' : 'PO No:') + '</td><td>' + piNo + '</td>';
+    html += '<td style="font-weight:bold;width:80px;">Date:</td><td>' + piDate + '</td></tr>';
+    html += '<tr><td style="font-weight:bold;">Customer:</td><td colspan="3">' + customerName + '</td></tr>';
+    if (billingSite) html += '<tr><td style="font-weight:bold;">Billing Site:</td><td colspan="3">' + billingSite + '</td></tr>';
+    if (shippingSite) html += '<tr><td style="font-weight:bold;">Shipping Site:</td><td colspan="3">' + shippingSite + '</td></tr>';
+    html += '</table></div>';
+
+    html += '<table style="margin-top:15px;">';
+    html += '<thead><tr style="background:#1a365d;color:white;">';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Sr.</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Part No</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Description</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">MRP</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Disc %</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Std Pkg</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Qty</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Net Rate</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Lock/Hinge</th>';
+    html += '<th style="padding:6px;border:1px solid #ddd;">Amount</th>';
+    html += '</tr></thead><tbody>' + itemsHtml + '</tbody></table>';
+
+    html += '<div class="totals"><table style="width:350px;margin-left:auto;">';
+    html += '<tr><td>Sub Total:</td><td style="text-align:right;">' + fmt(totalAmount) + '</td></tr>';
+    html += '<tr><td>GST @18%:</td><td style="text-align:right;">' + fmt(gst) + '</td></tr>';
+    html += '<tr><td>Freight:</td><td style="text-align:right;">' + fmt(freight) + '</td></tr>';
+    html += '<tr style="font-size:14px;font-weight:bold;border-top:2px solid #1a365d;"><td>Grand Total:</td><td style="text-align:right;color:#16a34a;">' + fmt(grandTotal) + '</td></tr>';
+    html += '</table></div>';
+
+    html += '<div class="terms"><h4>Terms & Conditions:</h4><ol>';
+    html += '<li>GST @ 18% will be charged extra</li>';
+    html += '<li>Freight will be charged extra</li>';
+    html += '<li>Material will be supplied ex-factory</li>';
+    html += '<li>Payment: Advance Cheque/Draft</li>';
+    html += '<li>Delivery: ' + ($('f-poodelivery').value || 30) + ' Days</li>';
+    html += '<li>Our Rc. No. is to be quoted on your invoice</li>';
+    html += '<li>Insurance: To be arranged by the buyer</li>';
+    html += '<li>Packing: Standard packaging</li>';
+    html += '<li>Subject to Jaipur Jurisdiction only</li>';
+    html += '</ol></div>';
+
+    html += '<div style="margin-top:40px;text-align:right;"><p>For RANA FORGING PVT LTD</p>';
+    html += '<p style="margin-top:30px;">Authorized Signatory</p></div>';
+
+    html += '</body></html>';
+
+    var printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
 }
 
 // ---- INIT ----

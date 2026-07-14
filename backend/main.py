@@ -1,10 +1,10 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, HTMLResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 import os
 import cloudinary
@@ -213,6 +213,63 @@ class Order(Base):
     transporter_no = Column(String, default="")
 
 
+class ProformaOrder(Base):
+    __tablename__ = "proforma_orders"
+    id = Column(Integer, primary_key=True, index=True)
+    pi_no = Column(String, unique=True)
+    pi_date = Column(DateTime, default=datetime.utcnow)
+    customer_id = Column(Integer, ForeignKey("customers.id"))
+    billing_site = Column(String, default="")
+    shipping_site = Column(String, default="")
+    no_of_boxes = Column(Integer, default=0)
+    total_qty = Column(Integer, default=0)
+    value_excl_gst = Column(Float, default=0)
+    gst_amount = Column(Float, default=0)
+    total_amount = Column(Float, default=0)
+    freight_amount = Column(Float, default=0)
+    payment_status = Column(String, default="Pending")
+    payment_method = Column(String, default="Cash")
+    transport_mode = Column(String, default="")
+    delivery_days = Column(Integer, default=30)
+    notes = Column(String, default="")
+    terms = Column(Text, default="")
+    order_type = Column(String, default="PI")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    customer = relationship("Customer")
+    items = relationship("ProformaOrderItem", back_populates="proforma_order", cascade="all,delete-orphan")
+
+
+class ProformaOrderItem(Base):
+    __tablename__ = "proforma_order_items"
+    id = Column(Integer, primary_key=True, index=True)
+    proforma_order_id = Column(Integer, ForeignKey("proforma_orders.id"))
+    sl_no = Column(Integer)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    part_no = Column(String, default="")
+    description = Column(String, default="")
+    size = Column(String, default="")
+    category = Column(String, default="")
+    qty_boxes = Column(Integer, default=1)
+    std_packaging = Column(Integer, default=1)
+    pieces_per_box = Column(Integer, default=1)
+    final_qty = Column(Integer, default=0)
+    mrp = Column(Float, default=0)
+    d1 = Column(Float, default=0)
+    d2 = Column(Float, default=0)
+    d3 = Column(Float, default=0)
+    d4 = Column(Float, default=0)
+    d5 = Column(Float, default=0)
+    cd = Column(Float, default=0)
+    discount_percent = Column(Float, default=0)
+    net_rate = Column(Float, default=0)
+    lock_hinge = Column(Integer, default=0)
+    basic_amount = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    proforma_order = relationship("ProformaOrder", back_populates="items")
+    product = relationship("Product")
+
+
 @app.get("/api/db-info")
 def db_info():
     db_url = os.environ.get("DATABASE_URL")
@@ -232,6 +289,16 @@ def db_info():
 def startup_event():
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
+        try:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS proforma_orders (id SERIAL PRIMARY KEY, pi_no VARCHAR UNIQUE, pi_date TIMESTAMP, customer_id INTEGER REFERENCES customers(id), billing_site VARCHAR DEFAULT '', shipping_site VARCHAR DEFAULT '', no_of_boxes INTEGER DEFAULT 0, total_qty INTEGER DEFAULT 0, value_excl_gst FLOAT DEFAULT 0, gst_amount FLOAT DEFAULT 0, total_amount FLOAT DEFAULT 0, freight_amount FLOAT DEFAULT 0, payment_status VARCHAR DEFAULT 'Pending', payment_method VARCHAR DEFAULT 'Cash', transport_mode VARCHAR DEFAULT '', delivery_days INTEGER DEFAULT 30, notes VARCHAR DEFAULT '', terms TEXT DEFAULT '', order_type VARCHAR DEFAULT 'PI', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS proforma_order_items (id SERIAL PRIMARY KEY, proforma_order_id INTEGER REFERENCES proforma_orders(id), sl_no INTEGER, product_id INTEGER REFERENCES products(id), part_no VARCHAR DEFAULT '', description VARCHAR DEFAULT '', size VARCHAR DEFAULT '', category VARCHAR DEFAULT '', qty_boxes INTEGER DEFAULT 1, std_packaging INTEGER DEFAULT 1, pieces_per_box INTEGER DEFAULT 1, final_qty INTEGER DEFAULT 0, mrp FLOAT DEFAULT 0, d1 FLOAT DEFAULT 0, d2 FLOAT DEFAULT 0, d3 FLOAT DEFAULT 0, d4 FLOAT DEFAULT 0, d5 FLOAT DEFAULT 0, cd FLOAT DEFAULT 0, discount_percent FLOAT DEFAULT 0, net_rate FLOAT DEFAULT 0, lock_hinge INTEGER DEFAULT 0, basic_amount FLOAT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.commit()
+        except Exception:
+            pass
         try:
             conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
             conn.commit()
@@ -561,6 +628,44 @@ class OrderIn(BaseModel):
     transporter_no: str = ""
 
 
+class ProformaOrderItemIn(BaseModel):
+    product_id: int
+    part_no: str = ""
+    description: str = ""
+    size: str = ""
+    category: str = ""
+    qty_boxes: int = 1
+    std_packaging: int = 1
+    pieces_per_box: int = 1
+    final_qty: int = 0
+    mrp: float = 0
+    d1: float = 0
+    d2: float = 0
+    d3: float = 0
+    d4: float = 0
+    d5: float = 0
+    cd: float = 0
+    discount_percent: float = 0
+    net_rate: float = 0
+    lock_hinge: int = 0
+    basic_amount: float = 0
+
+
+class ProformaOrderIn(BaseModel):
+    customer_id: int
+    billing_site: str = ""
+    shipping_site: str = ""
+    freight_amount: float = 0
+    payment_status: str = "Pending"
+    payment_method: str = "Cash"
+    transport_mode: str = ""
+    delivery_days: int = 30
+    notes: str = ""
+    terms: str = ""
+    order_type: str = "PI"
+    items: List[ProformaOrderItemIn] = []
+
+
 # ---- PRODUCTS ----
 SIZE_ORDER = {
     "10x10": 1, "250x250": 1,
@@ -751,6 +856,337 @@ def delete_order(oid: int):
         db.delete(o)
         db.commit()
         return {"message": "Deleted"}
+    finally:
+        db.close()
+
+
+# ---- PROFORMA ORDERS (Multi-Product PI/PO) ----
+@app.get("/api/proforma-orders")
+def list_proforma_orders(order_type: str = None):
+    db = SessionLocal()
+    try:
+        query = db.query(ProformaOrder)
+        if order_type:
+            query = query.filter(ProformaOrder.order_type == order_type)
+        rows = query.order_by(ProformaOrder.created_at.desc()).all()
+        out = []
+        for o in rows:
+            cust = db.query(Customer).filter(Customer.id == o.customer_id).first()
+            items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == o.id).all()
+            out.append({
+                "id": o.id, "pi_no": o.pi_no,
+                "pi_date": o.pi_date.isoformat() if o.pi_date else None,
+                "customer_name": cust.contact_name if cust else "?",
+                "customer_id": o.customer_id,
+                "billing_site": o.billing_site, "shipping_site": o.shipping_site,
+                "no_of_boxes": o.no_of_boxes, "total_qty": o.total_qty,
+                "value_excl_gst": o.value_excl_gst, "gst_amount": o.gst_amount,
+                "total_amount": o.total_amount, "freight_amount": o.freight_amount,
+                "payment_status": o.payment_status, "payment_method": o.payment_method,
+                "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
+                "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
+                "item_count": len(items),
+                "created_at": o.created_at.isoformat() if o.created_at else None
+            })
+        return out
+    finally:
+        db.close()
+
+
+@app.get("/api/proforma-orders/{oid}")
+def get_proforma_order(oid: int):
+    db = SessionLocal()
+    try:
+        o = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not o:
+            raise HTTPException(404, "Order not found")
+        cust = db.query(Customer).filter(Customer.id == o.customer_id).first()
+        items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == o.id).order_by(ProformaOrderItem.sl_no).all()
+        items_out = []
+        for item in items:
+            prod = db.query(Product).filter(Product.id == item.product_id).first()
+            items_out.append({
+                "id": item.id, "sl_no": item.sl_no,
+                "product_id": item.product_id,
+                "product_name": prod.name if prod else "?",
+                "part_no": item.part_no, "description": item.description,
+                "size": item.size, "category": item.category,
+                "qty_boxes": item.qty_boxes, "std_packaging": item.std_packaging,
+                "pieces_per_box": item.pieces_per_box, "final_qty": item.final_qty,
+                "mrp": item.mrp, "d1": item.d1, "d2": item.d2, "d3": item.d3,
+                "d4": item.d4, "d5": item.d5, "cd": item.cd,
+                "discount_percent": item.discount_percent,
+                "net_rate": item.net_rate, "lock_hinge": item.lock_hinge,
+                "basic_amount": item.basic_amount
+            })
+        return {
+            "id": o.id, "pi_no": o.pi_no,
+            "pi_date": o.pi_date.isoformat() if o.pi_date else None,
+            "customer_id": o.customer_id,
+            "customer_name": cust.contact_name if cust else "?",
+            "customer_gst": cust.gstin if cust else "",
+            "customer_state": cust.state if cust else "",
+            "customer_address": cust.billing_address if cust else "",
+            "billing_site": o.billing_site, "shipping_site": o.shipping_site,
+            "no_of_boxes": o.no_of_boxes, "total_qty": o.total_qty,
+            "value_excl_gst": o.value_excl_gst, "gst_amount": o.gst_amount,
+            "total_amount": o.total_amount, "freight_amount": o.freight_amount,
+            "payment_status": o.payment_status, "payment_method": o.payment_method,
+            "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
+            "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
+            "items": items_out,
+            "created_at": o.created_at.isoformat() if o.created_at else None
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/proforma-orders")
+def create_proforma_order(inp: ProformaOrderIn):
+    db = SessionLocal()
+    try:
+        customer = db.query(Customer).filter(Customer.id == inp.customer_id).first()
+        if not customer:
+            raise HTTPException(404, "Customer not found")
+
+        max_id = db.query(ProformaOrder).count()
+        pi_no = f"RFC/{datetime.now().strftime('%y%m')}-{max_id + 1:03d}"
+
+        total_qty = 0
+        total_basic = 0
+
+        for item in inp.items:
+            total_qty += item.final_qty
+            total_basic += item.basic_amount
+
+        gst_amount = total_basic * 0.18
+        total_amount = total_basic + gst_amount + inp.freight_amount
+
+        order = ProformaOrder(
+            pi_no=pi_no, customer_id=inp.customer_id,
+            billing_site=inp.billing_site, shipping_site=inp.shipping_site,
+            total_qty=total_qty, no_of_boxes=sum(i.qty_boxes for i in inp.items),
+            value_excl_gst=total_basic, gst_amount=gst_amount,
+            total_amount=total_amount, freight_amount=inp.freight_amount,
+            payment_status=inp.payment_status, payment_method=inp.payment_method,
+            transport_mode=inp.transport_mode, delivery_days=inp.delivery_days,
+            notes=inp.notes, terms=inp.terms, order_type=inp.order_type
+        )
+        db.add(order)
+        db.flush()
+
+        for idx, item in enumerate(inp.items):
+            db.add(ProformaOrderItem(
+                proforma_order_id=order.id, sl_no=idx + 1,
+                product_id=item.product_id, part_no=item.part_no,
+                description=item.description, size=item.size,
+                category=item.category, qty_boxes=item.qty_boxes,
+                std_packaging=item.std_packaging, pieces_per_box=item.pieces_per_box,
+                final_qty=item.final_qty, mrp=item.mrp,
+                d1=item.d1, d2=item.d2, d3=item.d3, d4=item.d4, d5=item.d5,
+                cd=item.cd, discount_percent=item.discount_percent,
+                net_rate=item.net_rate, lock_hinge=item.lock_hinge,
+                basic_amount=item.basic_amount
+            ))
+
+        db.commit()
+        return {"id": order.id, "pi_no": pi_no, "total": total_amount}
+    finally:
+        db.close()
+
+
+@app.put("/api/proforma-orders/{oid}")
+def update_proforma_order(oid: int, inp: ProformaOrderIn):
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+
+        customer = db.query(Customer).filter(Customer.id == inp.customer_id).first()
+        if not customer:
+            raise HTTPException(404, "Customer not found")
+
+        order.customer_id = inp.customer_id
+        order.billing_site = inp.billing_site
+        order.shipping_site = inp.shipping_site
+        order.freight_amount = inp.freight_amount
+        order.payment_status = inp.payment_status
+        order.payment_method = inp.payment_method
+        order.transport_mode = inp.transport_mode
+        order.delivery_days = inp.delivery_days
+        order.notes = inp.notes
+        order.terms = inp.terms
+        order.order_type = inp.order_type
+
+        db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).delete()
+
+        total_qty = 0
+        total_basic = 0
+        for idx, item in enumerate(inp.items):
+            total_qty += item.final_qty
+            total_basic += item.basic_amount
+            db.add(ProformaOrderItem(
+                proforma_order_id=oid, sl_no=idx + 1,
+                product_id=item.product_id, part_no=item.part_no,
+                description=item.description, size=item.size,
+                category=item.category, qty_boxes=item.qty_boxes,
+                std_packaging=item.std_packaging, pieces_per_box=item.pieces_per_box,
+                final_qty=item.final_qty, mrp=item.mrp,
+                d1=item.d1, d2=item.d2, d3=item.d3, d4=item.d4, d5=item.d5,
+                cd=item.cd, discount_percent=item.discount_percent,
+                net_rate=item.net_rate, lock_hinge=item.lock_hinge,
+                basic_amount=item.basic_amount
+            ))
+
+        gst_amount = total_basic * 0.18
+        order.total_qty = total_qty
+        order.no_of_boxes = sum(i.qty_boxes for i in inp.items)
+        order.value_excl_gst = total_basic
+        order.gst_amount = gst_amount
+        order.total_amount = total_basic + gst_amount + inp.freight_amount
+        order.updated_at = datetime.utcnow()
+
+        db.commit()
+        return {"message": "Order updated"}
+    finally:
+        db.close()
+
+
+@app.delete("/api/proforma-orders/{oid}")
+def delete_proforma_order(oid: int):
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).delete()
+        db.delete(order)
+        db.commit()
+        return {"message": "Order deleted"}
+    finally:
+        db.close()
+
+
+@app.get("/api/products/{pid}/details")
+def get_product_details(pid: int):
+    db = SessionLocal()
+    try:
+        p = db.query(Product).filter(Product.id == pid).first()
+        if not p:
+            raise HTTPException(404, "Product not found")
+        pr = db.query(Pricing).filter(Pricing.product_id == pid).first()
+        return {
+            "id": p.id, "name": p.name, "category": p.category,
+            "size": p.size, "part_no": p.part_no,
+            "mrp": pr.mrp if pr else 0,
+            "pieces_per_box": 1,
+            "std_packaging": 1
+        }
+    finally:
+        db.close()
+
+
+@app.get("/api/proforma-orders/{oid}/pdf")
+def generate_proforma_order_pdf(oid: int):
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
+        items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).order_by(ProformaOrderItem.sl_no).all()
+
+        items_html = ""
+        for item in items:
+            items_html += f"""
+            <tr>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.sl_no}</td>
+                <td style="padding:6px;border:1px solid #ddd;">{item.part_no or '-'}</td>
+                <td style="padding:6px;border:1px solid #ddd;">{item.description or ''} ({item.size or ''})</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.mrp:,.2f}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.discount_percent}%</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.std_packaging}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.final_qty}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.net_rate:,.2f}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.lock_hinge}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;font-weight:bold;">₹{item.basic_amount:,.2f}</td>
+            </tr>"""
+
+        title = "PROFORMA INVOICE" if order.order_type == "PI" else "PURCHASE ORDER"
+        pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
+
+        html = f"""<!DOCTYPE html>
+<html><head><title>{title}</title>
+<style>
+body{{font-family:Arial,sans-serif;margin:20px;font-size:12px;}}
+table{{width:100%;border-collapse:collapse;}}
+.header{{text-align:center;margin-bottom:20px;}}
+.header h1{{margin:0;font-size:18px;color:#1a365d;}}
+.header p{{margin:2px 0;color:#555;font-size:11px;}}
+.details{{margin:15px 0;}}
+.details td{{padding:3px 8px;font-size:11px;}}
+.totals{{text-align:right;margin-top:10px;}}
+.totals td{{padding:4px 8px;font-size:11px;}}
+.terms{{margin-top:20px;font-size:10px;border-top:1px solid #ccc;padding-top:10px;}}
+@media print{{body{{margin:10mm;}}}}
+</style></head><body>
+
+<div class="header">
+<h1>RANA FORGING PVT LTD</h1>
+<p>KHATU MOHAMADPUR, NH-8, JAIPUR-302012 (RAJ.)</p>
+<p>Tel: 9928684835, 9672962255 | Email: ranaforging@gmail.com</p>
+<p>GSTIN: 08AAFCT3014D1ZC | PAN: AAFCT3014D | State: RAJASTHAN (08)</p>
+</div>
+
+<div class="details"><table>
+<tr><td style="font-weight:bold;width:120px;">{"Quotation No:" if order.order_type == "PI" else "PO No:"}</td><td>{order.pi_no}</td>
+<td style="font-weight:bold;width:80px;">Date:</td><td>{pi_date}</td></tr>
+<tr><td style="font-weight:bold;">Customer:</td><td colspan="3">{customer.contact_name if customer else "?"}</td></tr>
+{"<tr><td style='font-weight:bold;'>GSTIN:</td><td colspan='3'>" + (customer.gstin or "") + "</td></tr>" if customer and customer.gstin else ""}
+{"<tr><td style='font-weight:bold;'>Billing Site:</td><td colspan='3'>" + (order.billing_site or "") + "</td></tr>" if order.billing_site else ""}
+{"<tr><td style='font-weight:bold;'>Shipping Site:</td><td colspan='3'>" + (order.shipping_site or "") + "</td></tr>" if order.shipping_site else ""}
+</table></div>
+
+<table style="margin-top:15px;">
+<thead><tr style="background:#1a365d;color:white;">
+<th style="padding:6px;border:1px solid #ddd;">Sr.</th>
+<th style="padding:6px;border:1px solid #ddd;">Part No</th>
+<th style="padding:6px;border:1px solid #ddd;">Description</th>
+<th style="padding:6px;border:1px solid #ddd;">MRP</th>
+<th style="padding:6px;border:1px solid #ddd;">Disc %</th>
+<th style="padding:6px;border:1px solid #ddd;">Std Pkg</th>
+<th style="padding:6px;border:1px solid #ddd;">Qty</th>
+<th style="padding:6px;border:1px solid #ddd;">Net Rate</th>
+<th style="padding:6px;border:1px solid #ddd;">Lock/Hinge</th>
+<th style="padding:6px;border:1px solid #ddd;">Amount</th>
+</tr></thead><tbody>{items_html}</tbody></table>
+
+<div class="totals"><table style="width:350px;margin-left:auto;">
+<tr><td>Sub Total:</td><td style="text-align:right;">₹{order.value_excl_gst:,.2f}</td></tr>
+<tr><td>GST @18%:</td><td style="text-align:right;">₹{order.gst_amount:,.2f}</td></tr>
+<tr><td>Freight:</td><td style="text-align:right;">₹{order.freight_amount:,.2f}</td></tr>
+<tr style="font-size:14px;font-weight:bold;border-top:2px solid #1a365d;"><td>Grand Total:</td><td style="text-align:right;color:#16a34a;">₹{order.total_amount:,.2f}</td></tr>
+</table></div>
+
+<div class="terms"><h4>Terms & Conditions:</h4><ol>
+<li>GST @ 18% will be charged extra</li>
+<li>Freight will be charged extra</li>
+<li>Material will be supplied ex-factory</li>
+<li>Payment: Advance Cheque/Draft</li>
+<li>Delivery: {order.delivery_days} Days</li>
+<li>Our Rc. No. is to be quoted on your invoice</li>
+<li>Insurance: To be arranged by the buyer</li>
+<li>Packing: Standard packaging</li>
+<li>Subject to Jaipur Jurisdiction only</li>
+</ol></div>
+
+<div style="margin-top:40px;text-align:right;"><p>For RANA FORGING PVT LTD</p>
+<p style="margin-top:30px;">Authorized Signatory</p></div>
+
+</body></html>"""
+
+        return HTMLResponse(content=html)
     finally:
         db.close()
 
