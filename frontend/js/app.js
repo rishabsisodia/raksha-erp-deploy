@@ -11,12 +11,11 @@ function go(page, el) {
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
     $('p-' + page).classList.remove('hidden');
     if (el) el.classList.add('bg-indigo-700');
-    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders','proforma-orders':'PI/PO Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
+    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
-    if (page === 'orders') loadOrders();
-    if (page === 'proforma-orders') loadProformaOrders();
+    if (page === 'orders') { loadOrders(); loadProformaOrders(); }
     if (page === 'customers') loadCustomers();
     if (page === 'transporters') loadTransporters();
     if (page === 'sales') loadSales();
@@ -922,7 +921,7 @@ async function showProformaOrderModal() {
     _proformaItems = [];
     $('f-pooid').value = '';
     $('m-po-title').textContent = 'New PI/PO Order';
-    await refreshDropdowns();
+    try { await refreshDropdowns(); } catch(e) {}
     addProformaItem();
     $('m-proforma-order').classList.remove('hidden');
 }
