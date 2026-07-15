@@ -1038,7 +1038,7 @@ function renderProformaItems() {
     _proformaItems.forEach(function(item, idx) {
         var prodOpts = '<option value="0">-- Select --</option>';
         _products.forEach(function(p) {
-            prodOpts += '<option value="' + p.id + '"' + (item.product_id == p.id ? ' selected' : '') + '>' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ')</option>';
+            prodOpts += '<option value="' + p.id + '"' + (item.product_id == p.id ? ' selected' : '') + '>' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ') [' + (p.load_rating || '5 Ton') + ']</option>';
         });
         h += '<tr class="border-b">';
         h += '<td style="padding:4px;width:30px;">' + (idx + 1) + '</td>';
