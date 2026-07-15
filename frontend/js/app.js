@@ -1095,7 +1095,8 @@ async function onProformaProductChange(idx, pid) {
 
 function calcProformaItemQty(idx) {
     var item = _proformaItems[idx];
-    item.final_qty = item.qty_boxes * item.pieces_per_box;
+    var ppb = item.std_packaging || item.pieces_per_box || 1;
+    item.final_qty = (item.qty_boxes || 0) * ppb;
 }
 
 function calcProformaItemNetRate(idx) {
