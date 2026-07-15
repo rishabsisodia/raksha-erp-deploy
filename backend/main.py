@@ -1157,12 +1157,16 @@ def generate_proforma_order_pdf(oid: int):
             items_html += f"""
             <tr>
                 <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.sl_no}</td>
-                <td style="padding:6px;border:1px solid #ddd;">{item.part_no or '-'}</td>
                 <td style="padding:6px;border:1px solid #ddd;">{item.description or ''} ({item.size or ''})</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.mrp:,.2f}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.discount_percent}%</td>
+                <td style="padding:6px;border:1px solid #ddd;">{item.category or '-'}</td>
+                <td style="padding:6px;border:1px solid #ddd;">{item.part_no or '-'}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.qty_boxes}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">Boxes</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.std_packaging}</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.final_qty}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">Pieces</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.mrp:,.2f}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.discount_percent}%</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.net_rate:,.2f}</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.lock_hinge}</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:right;font-weight:bold;">₹{item.basic_amount:,.2f}</td>
@@ -1206,15 +1210,19 @@ table{{width:100%;border-collapse:collapse;}}
 <table style="margin-top:15px;">
 <thead><tr style="background:#1a365d;color:white;">
 <th style="padding:6px;border:1px solid #ddd;">Sr.</th>
-<th style="padding:6px;border:1px solid #ddd;">Part No</th>
 <th style="padding:6px;border:1px solid #ddd;">Description</th>
+<th style="padding:6px;border:1px solid #ddd;">Item Group</th>
+<th style="padding:6px;border:1px solid #ddd;">Part No</th>
+<th style="padding:6px;border:1px solid #ddd;">Boxes</th>
+<th style="padding:6px;border:1px solid #ddd;">Base UOM</th>
+<th style="padding:6px;border:1px solid #ddd;">Std Pkg</th>
+<th style="padding:6px;border:1px solid #ddd;">Final Qty</th>
+<th style="padding:6px;border:1px solid #ddd;">Final UOM</th>
 <th style="padding:6px;border:1px solid #ddd;">MRP</th>
 <th style="padding:6px;border:1px solid #ddd;">Disc %</th>
-<th style="padding:6px;border:1px solid #ddd;">Std Pkg</th>
-<th style="padding:6px;border:1px solid #ddd;">Qty</th>
 <th style="padding:6px;border:1px solid #ddd;">Net Rate</th>
-<th style="padding:6px;border:1px solid #ddd;">Lock/Hinge</th>
-<th style="padding:6px;border:1px solid #ddd;">Amount</th>
+<th style="padding:6px;border:1px solid #ddd;">L&H</th>
+<th style="padding:6px;border:1px solid #ddd;">Basic Amt</th>
 </tr></thead><tbody>{items_html}</tbody></table>
 
 <div class="totals"><table style="width:350px;margin-left:auto;">
