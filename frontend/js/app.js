@@ -1099,10 +1099,15 @@ function calcProformaItemQty(idx) {
 
 function calcProformaItemNetRate(idx) {
     var item = _proformaItems[idx];
-    var rate = item.mrp;
-    var totalDisc = item.d1 + item.d2 + item.d3 + item.d4 + item.d5 + item.cd;
-    item.discount_percent = totalDisc;
-    item.net_rate = rate * (1 - totalDisc / 100);
+    var net = item.mrp;
+    net = net * (1 - (item.d1 || 0) / 100);
+    net = net * (1 - (item.d2 || 0) / 100);
+    net = net * (1 - (item.d3 || 0) / 100);
+    net = net * (1 - (item.d4 || 0) / 100);
+    net = net * (1 - (item.d5 || 0) / 100);
+    net = net * (1 - (item.cd || 0) / 100);
+    item.net_rate = Math.round(net * 100) / 100;
+    item.discount_percent = item.mrp > 0 ? Math.round((1 - item.net_rate / item.mrp) * 10000) / 100 : 0;
     calcProformaItemAmount(idx);
 }
 
