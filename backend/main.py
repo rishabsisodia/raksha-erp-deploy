@@ -414,6 +414,16 @@ PART_NO_CSV = [
     ("FRP01115-WHH", "FRP Manhole Cover 24 X 24 White Double Hinges"),
     ("FRP01115-GRY/H&L", "FRP Manhole Cover 24 X 24 Grey Double Hinges & Single Lock"),
     ("FRP01115-WH/H&L", "FRP Manhole Cover 24 X 24 White Double Hinges & Single Lock"),
+    ("FRP01209-GRY", "FRP Manhole Cover 18 X 18 Heavy Duty Grey"),
+    ("FRP01215-GRY", "FRP Manhole Cover 24 X 24 Heavy Duty Grey"),
+    ("FRP01219-GRY", "FRP Manhole Cover 28 X 28 Heavy Duty Grey"),
+    ("FRP01221-GRY", "FRP Manhole Cover 30 X 30 Heavy Duty Grey"),
+    ("FRP01233-GRY", "FRP Manhole Cover 42 X 42 Heavy Duty Grey"),
+    ("FRP01209-WH", "FRP Manhole Cover 18 X 18 Heavy Duty White"),
+    ("FRP01215-WH", "FRP Manhole Cover 24 X 24 Heavy Duty White"),
+    ("FRP01219-WH", "FRP Manhole Cover 28 X 28 Heavy Duty White"),
+    ("FRP01221-WH", "FRP Manhole Cover 30 X 30 Heavy Duty White"),
+    ("FRP01233-WH", "FRP Manhole Cover 42 X 42 Heavy Duty White"),
     ("RGC00001-GRY", "RAKSHA Gully Cover 10 X 10 Grey"),
     ("RGC00002-GRY", "RAKSHA Gully Cover 12 X 12 Grey"),
     ("RGC00003-GRY", "RAKSHA Gully Cover 15 X 15 Grey"),
@@ -551,6 +561,18 @@ def seed_data():
             # Manhole Cover - Double Hinges & Single Lock
             {"part_no": "FRP01115-GRY/H&L", "name": "FRP Manhole Cover 24 X 24 Grey Double Hinges & Single Lock", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 1065, "mrp": 2560, "ppb": 2},
             {"part_no": "FRP01115-WH/H&L", "name": "FRP Manhole Cover 24 X 24 White Double Hinges & Single Lock", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 1065, "mrp": 2560, "ppb": 2},
+            # Heavy Duty Manhole Cover - Grey
+            {"part_no": "FRP01209-GRY", "name": "FRP Manhole Cover 18 X 18 Heavy Duty Grey", "category": "Manhole Cover", "size": "18x18", "color": "Grey", "rate": 1200, "mrp": 3340, "ppb": 1},
+            {"part_no": "FRP01215-GRY", "name": "FRP Manhole Cover 24 X 24 Heavy Duty Grey", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 2200, "mrp": 6042, "ppb": 1},
+            {"part_no": "FRP01219-GRY", "name": "FRP Manhole Cover 28 X 28 Heavy Duty Grey", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 3100, "mrp": 8504, "ppb": 1},
+            {"part_no": "FRP01221-GRY", "name": "FRP Manhole Cover 30 X 30 Heavy Duty Grey", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 3800, "mrp": 10414, "ppb": 1},
+            {"part_no": "FRP01233-GRY", "name": "FRP Manhole Cover 42 X 42 Heavy Duty Grey", "category": "Manhole Cover", "size": "42x42", "color": "Grey", "rate": 11000, "mrp": 30208, "ppb": 1},
+            # Heavy Duty Manhole Cover - White
+            {"part_no": "FRP01209-WH", "name": "FRP Manhole Cover 18 X 18 Heavy Duty White", "category": "Manhole Cover", "size": "18x18", "color": "White", "rate": 1200, "mrp": 3340, "ppb": 1},
+            {"part_no": "FRP01215-WH", "name": "FRP Manhole Cover 24 X 24 Heavy Duty White", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 2200, "mrp": 6042, "ppb": 1},
+            {"part_no": "FRP01219-WH", "name": "FRP Manhole Cover 28 X 28 Heavy Duty White", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 3100, "mrp": 8504, "ppb": 1},
+            {"part_no": "FRP01221-WH", "name": "FRP Manhole Cover 30 X 30 Heavy Duty White", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 3800, "mrp": 10414, "ppb": 1},
+            {"part_no": "FRP01233-WH", "name": "FRP Manhole Cover 42 X 42 Heavy Duty White", "category": "Manhole Cover", "size": "42x42", "color": "White", "rate": 11000, "mrp": 30208, "ppb": 1},
             # Gully Cover - Grey
             {"part_no": "RGC00001-GRY", "name": "RAKSHA Gully Cover 10 X 10 Grey", "category": "Gully Cover", "size": "10x10", "color": "Grey", "rate": 240, "mrp": 806, "ppb": 12},
             {"part_no": "RGC00002-GRY", "name": "RAKSHA Gully Cover 12 X 12 Grey", "category": "Gully Cover", "size": "12x12", "color": "Grey", "rate": 325, "mrp": 984, "ppb": 6},
@@ -2225,7 +2247,7 @@ async def import_standard_packaging(file: UploadFile = File(...)):
         for row in rows[1:]:
             if len(row) <= max(part_no_idx, box_idx):
                 continue
-            part_no = row[part_no_idx].strip()
+            part_no = row[part_no_idx].strip().replace(" ", "")
             box_val = row[box_idx].strip()
             if not part_no or not box_val:
                 continue
