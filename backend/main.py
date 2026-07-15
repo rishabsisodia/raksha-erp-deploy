@@ -2265,6 +2265,9 @@ async def import_standard_packaging(file: UploadFile = File(...)):
         part_no_idx = None
         box_idx = None
         mrp_idx = None
+        desc_idx = None
+        size_idx = None
+        grp_idx = None
         for i, h in enumerate(header):
             if "part no" in h:
                 part_no_idx = i
@@ -2272,9 +2275,20 @@ async def import_standard_packaging(file: UploadFile = File(...)):
                 box_idx = i
             if h in ("gen", "mrp") or h == "gen":
                 mrp_idx = i
+            if "product spec" in h or "description" in h:
+                desc_idx = i
+            if "size" in h:
+                size_idx = i
+            if "item grp" in h or "item group" in h or "grp" in h:
+                grp_idx = i
         if part_no_idx is None or box_idx is None:
             raise HTTPException(400, f"File must have 'Part No' and 'Box'/'Std Packing' columns. Found: {header}")
 
+        desc_idx = desc_idx or 1
+        size_idx = size_idx or 2
+        grp_idx = grp_idx or 4
+
+        created = 0
         updated = 0
         not_found = []
         for row in rows[header_row_idx+1:]:
@@ -2288,6 +2302,18 @@ async def import_standard_packaging(file: UploadFile = File(...)):
                 pieces = int(float(box_val))
             except ValueError:
                 continue
+
+            desc = str(row[desc_idx] or "").strip() if len(row) > desc_idx else ""
+            size_raw = str(row[size_idx] or "").strip() if len(row) > size_idx else ""
+            item_grp = str(row[grp_idx] or "").strip().upper() if len(row) > grp_idx else "FRP"
+
+            size_mm = size_raw.lower().replace(" ", "").replace("x", "x")
+            tonnage = "10 Ton" if "10 ton" in desc.lower() else "5 Ton"
+            color = "White" if "white" in desc.lower() or part_no.upper().endswith("-WH") else "Grey"
+            has_lock = "lock" in desc.lower() or part_no.upper().endswith("L") and "GRY" not in part_no.upper()
+            has_hinges = "hinge" in desc.lower()
+            category = "Gully Cover" if "gully" in desc.lower() or item_grp == "GULLY" else "Manhole Cover"
+
             product = db.query(Product).filter(Product.part_no == part_no).first()
             if product:
                 product.pieces_per_box = pieces
@@ -2306,10 +2332,27 @@ async def import_standard_packaging(file: UploadFile = File(...)):
                         pass
                 updated += 1
             else:
-                not_found.append(part_no)
+                if not desc:
+                    continue
+                new_p = Product(
+                    part_no=part_no, name=desc, category=category,
+                    size=size_mm, load_rating=tonnage, material="FRP",
+                    color=color, hsn_code="39259090",
+                    pieces_per_box=pieces, std_packaging=pieces
+                )
+                db.add(new_p)
+                db.flush()
+                mrp_val = 0
+                if mrp_idx is not None and len(row) > mrp_idx:
+                    try:
+                        mrp_val = float(row[mrp_idx].strip().replace(",", "").replace("₹", "").replace("?", ""))
+                    except ValueError:
+                        pass
+                db.add(Pricing(product_id=new_p.id, mrp=mrp_val, gst_rate=18))
+                created += 1
 
         db.commit()
-        return {"updated": updated, "not_found": not_found, "total_rows": len(rows) - 1}
+        return {"updated": updated, "created": created, "not_found": not_found, "total_rows": len(rows) - header_row_idx - 1}
     except HTTPException:
         raise
     except Exception as e:
