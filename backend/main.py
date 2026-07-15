@@ -10,6 +10,8 @@ import os
 import cloudinary
 import cloudinary.uploader
 import urllib.request
+import csv
+import io
 
 app = FastAPI(title="Raksha ERP")
 
@@ -47,6 +49,8 @@ class Product(Base):
     color = Column(String, default="Grey")
     unit = Column(String, default="Nos")
     hsn_code = Column(String, default="")
+    pieces_per_box = Column(Integer, default=1)
+    std_packaging = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
     pricing = relationship("Pricing", back_populates="product", uselist=False, cascade="all,delete-orphan")
 
@@ -301,6 +305,16 @@ def startup_event():
             pass
         try:
             conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS pieces_per_box INTEGER DEFAULT 1"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS std_packaging INTEGER DEFAULT 1"))
             conn.commit()
         except Exception:
             pass
@@ -1080,8 +1094,8 @@ def get_product_details(pid: int):
             "id": p.id, "name": p.name, "category": p.category,
             "size": p.size, "part_no": p.part_no,
             "mrp": pr.mrp if pr else 0,
-            "pieces_per_box": 1,
-            "std_packaging": 1
+            "pieces_per_box": p.pieces_per_box or 1,
+            "std_packaging": p.std_packaging or 1
         }
     finally:
         db.close()
@@ -2119,6 +2133,59 @@ async def upload_file(file: UploadFile = File(...)):
         return {"filename": result["public_id"], "url": url, "original": file.filename}
     except Exception as e:
         raise HTTPException(500, f"Upload failed: {str(e)}")
+
+
+@app.post("/api/import-standard-packaging")
+async def import_standard_packaging(file: UploadFile = File(...)):
+    db = SessionLocal()
+    try:
+        content = await file.read()
+        text_content = content.decode("utf-8-sig")
+        reader = csv.reader(io.StringIO(text_content))
+        rows = list(reader)
+        if not rows:
+            raise HTTPException(400, "CSV file is empty")
+
+        header = [h.strip().lower() for h in rows[0]]
+        part_no_idx = None
+        box_idx = None
+        for i, h in enumerate(header):
+            if h == "part no":
+                part_no_idx = i
+            if h == "box":
+                box_idx = i
+        if part_no_idx is None or box_idx is None:
+            raise HTTPException(400, f"CSV must have 'Part No' and 'Box' columns. Found: {header}")
+
+        updated = 0
+        not_found = []
+        for row in rows[1:]:
+            if len(row) <= max(part_no_idx, box_idx):
+                continue
+            part_no = row[part_no_idx].strip()
+            box_val = row[box_idx].strip()
+            if not part_no or not box_val:
+                continue
+            try:
+                pieces = int(box_val)
+            except ValueError:
+                continue
+            product = db.query(Product).filter(Product.part_no == part_no).first()
+            if product:
+                product.pieces_per_box = pieces
+                product.std_packaging = pieces
+                updated += 1
+            else:
+                not_found.append(part_no)
+
+        db.commit()
+        return {"updated": updated, "not_found": not_found, "total_rows": len(rows) - 1}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
 
 
 # ---- FRONTEND ----
