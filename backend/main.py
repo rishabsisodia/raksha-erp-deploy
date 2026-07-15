@@ -2228,23 +2228,30 @@ async def import_standard_packaging(file: UploadFile = File(...)):
         if not rows:
             raise HTTPException(400, "File is empty")
 
-        header = [h.strip().lower() for h in rows[0]]
+        header_row_idx = 0
+        for i, row in enumerate(rows):
+            row_lower = [str(c).strip().lower() for c in row]
+            if any("part no" in c for c in row_lower):
+                header_row_idx = i
+                break
+
+        header = [h.strip().lower() for h in rows[header_row_idx]]
         part_no_idx = None
         box_idx = None
         mrp_idx = None
         for i, h in enumerate(header):
-            if h == "part no":
+            if "part no" in h:
                 part_no_idx = i
-            if h in ("box", "boxes"):
+            if h in ("box", "boxes") or "std pack" in h or "std pkg" in h:
                 box_idx = i
-            if h in ("gen", "mrp"):
+            if h in ("gen", "mrp") or h == "gen":
                 mrp_idx = i
         if part_no_idx is None or box_idx is None:
-            raise HTTPException(400, f"File must have 'Part No' and 'Box' columns. Found: {header}")
+            raise HTTPException(400, f"File must have 'Part No' and 'Box'/'Std Packing' columns. Found: {header}")
 
         updated = 0
         not_found = []
-        for row in rows[1:]:
+        for row in rows[header_row_idx+1:]:
             if len(row) <= max(part_no_idx, box_idx):
                 continue
             part_no = row[part_no_idx].strip().replace(" ", "")
