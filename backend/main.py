@@ -2189,22 +2189,36 @@ async def import_standard_packaging(file: UploadFile = File(...)):
     db = SessionLocal()
     try:
         content = await file.read()
-        text_content = content.decode("utf-8-sig")
-        reader = csv.reader(io.StringIO(text_content))
-        rows = list(reader)
+        filename = (file.filename or "").lower()
+
+        if filename.endswith((".xlsx", ".xls")):
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+            ws = wb.active
+            rows = []
+            for row in ws.iter_rows(values_only=True):
+                rows.append([str(c) if c is not None else "" for c in row])
+        else:
+            text_content = content.decode("utf-8-sig")
+            reader = csv.reader(io.StringIO(text_content))
+            rows = list(reader)
+
         if not rows:
-            raise HTTPException(400, "CSV file is empty")
+            raise HTTPException(400, "File is empty")
 
         header = [h.strip().lower() for h in rows[0]]
         part_no_idx = None
         box_idx = None
+        mrp_idx = None
         for i, h in enumerate(header):
             if h == "part no":
                 part_no_idx = i
-            if h == "box":
+            if h in ("box", "boxes"):
                 box_idx = i
+            if h in ("gen", "mrp"):
+                mrp_idx = i
         if part_no_idx is None or box_idx is None:
-            raise HTTPException(400, f"CSV must have 'Part No' and 'Box' columns. Found: {header}")
+            raise HTTPException(400, f"File must have 'Part No' and 'Box' columns. Found: {header}")
 
         updated = 0
         not_found = []
@@ -2216,13 +2230,25 @@ async def import_standard_packaging(file: UploadFile = File(...)):
             if not part_no or not box_val:
                 continue
             try:
-                pieces = int(box_val)
+                pieces = int(float(box_val))
             except ValueError:
                 continue
             product = db.query(Product).filter(Product.part_no == part_no).first()
             if product:
                 product.pieces_per_box = pieces
                 product.std_packaging = pieces
+                if mrp_idx is not None and len(row) > mrp_idx:
+                    mrp_val = row[mrp_idx].strip().replace(",", "").replace("₹", "").replace("?", "")
+                    try:
+                        mrp = float(mrp_val)
+                        if mrp > 0:
+                            pr = db.query(Pricing).filter(Pricing.product_id == product.id).first()
+                            if pr:
+                                pr.mrp = mrp
+                            else:
+                                db.add(Pricing(product_id=product.id, mrp=mrp, gst_rate=18))
+                    except ValueError:
+                        pass
                 updated += 1
             else:
                 not_found.append(part_no)
