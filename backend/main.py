@@ -355,17 +355,18 @@ def backfill_pieces_per_box():
         products = db.query(Product).all()
         updated = 0
         for p in products:
-            if p.pieces_per_box and p.pieces_per_box != 1:
-                continue
             size_lower = (p.size or "").lower().replace(" ", "")
             ppb = PIECES_PER_BOX_MAP.get(size_lower)
-            if ppb:
+            if ppb and p.pieces_per_box != ppb:
                 p.pieces_per_box = ppb
                 p.std_packaging = ppb
                 updated += 1
+            if p.part_no.startswith("RGC") and "Gully" not in (p.name or ""):
+                p.name = p.name.replace("Manhole Cover", "Gully Cover").replace("FRP ", "Raksha ")
+                updated += 1
         if updated:
             db.commit()
-            print(f"Backfilled pieces_per_box for {updated} products")
+            print(f"Backfilled pieces_per_box and fixed names for {updated} products")
     finally:
         db.close()
 
