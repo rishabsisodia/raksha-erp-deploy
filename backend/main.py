@@ -332,8 +332,27 @@ def startup_event():
         ]
         for col in new_sale_cols:
             try:
-                col_type = "FLOAT" if col in ("weight_kgs","weight_pg_fiber","pg_fiber_invoice_value","gp","gp_percent") else "VARCHAR DEFAULT ''"
+                col_type = "FLOAT" if col in ("weight_kgs","weight_pg_fiber","pg_fiber_invoice_value","gp","gp_percent","invoice_value") else "VARCHAR DEFAULT ''"
                 conn.execute(text(f"ALTER TABLE sales ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+            except Exception:
+                pass
+        conn.commit()
+        try:
+            conn.execute(text("ALTER TABLE sales ALTER COLUMN invoice_value TYPE FLOAT USING invoice_value::float"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE sales ALTER COLUMN invoice_value SET DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
+        new_customer_cols = ["contact_name", "contact_number", "contact_email",
+                            "exec_code", "exec_name", "exec_number", "exec_email",
+                            "billing_address", "shipping_address", "pincode"]
+        for col in new_customer_cols:
+            try:
+                conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
             except Exception:
                 pass
         conn.commit()
