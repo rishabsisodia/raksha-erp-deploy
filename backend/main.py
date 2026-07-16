@@ -352,20 +352,34 @@ def startup_event():
             conn.commit()
         except Exception:
             pass
-        new_customer_cols = ["customer_id", "contact_name", "contact_number", "contact_email",
+        new_customer_cols = ["gstin", "billing_address", "shipping_address",
+                            "state", "district", "city", "pincode",
+                            "contact_name", "contact_number", "contact_email",
                             "exec_code", "exec_name", "exec_number", "exec_email",
-                            "billing_address", "shipping_address", "pincode"]
+                            "blacklisted", "created_at"]
         for col in new_customer_cols:
             try:
-                if col == "customer_id":
-                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
+                if col == "blacklisted":
+                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} INTEGER DEFAULT 0"))
+                elif col == "created_at":
+                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
                 else:
                     conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
             except Exception:
                 pass
         conn.commit()
         try:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_id VARCHAR DEFAULT ''"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
             conn.execute(text("UPDATE customers SET customer_id = 'C' || id WHERE customer_id IS NULL OR customer_id = ''"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE customers ADD CONSTRAINT IF NOT EXISTS customers_customer_id_unique UNIQUE (customer_id)"))
             conn.commit()
         except Exception:
             pass
