@@ -151,6 +151,7 @@ class Sale(Base):
     pg_fiber_invoice_value = Column(Float, default=0)
     gp = Column(Float, default=0)
     gp_percent = Column(Float, default=0)
+    invoice_value = Column(Float, default=0)
     source_csv = Column(String, default="")
     customer = relationship("Customer")
     product = relationship("Product")
@@ -327,7 +328,7 @@ def startup_event():
             "party_name", "payment_terms", "location", "pincode", "state",
             "transporter_name", "lr_no", "weight_kgs", "weight_pg_fiber",
             "sales_person", "pg_fiber_invoice_no", "pg_fiber_invoice_value",
-            "gp", "gp_percent", "source_csv"
+            "gp", "gp_percent", "invoice_value", "source_csv"
         ]
         for col in new_sale_cols:
             try:
@@ -338,6 +339,7 @@ def startup_event():
         conn.commit()
     backfill_part_numbers()
     backfill_pieces_per_box()
+    backfill_product_names()
     seed_data()
 
 
@@ -365,101 +367,85 @@ def backfill_pieces_per_box():
                 p.pieces_per_box = ppb
                 p.std_packaging = ppb
                 updated += 1
-            if p.part_no.startswith("RGC") and "Gully" not in (p.name or ""):
-                p.name = p.name.replace("Manhole Cover", "Gully Cover").replace("FRP ", "Raksha ")
-                updated += 1
             pn = (p.part_no or "").upper().replace(" ", "")
             if pn.startswith("FRP012"):
                 if p.load_rating != "10 Ton":
                     p.load_rating = "10 Ton"
                     updated += 1
-                if "10 Ton" not in (p.name or ""):
-                    p.name = (p.name or "").replace("Heavy Duty Grey", "Heavy Duty 10 Ton Grey").replace("Heavy Duty White", "Heavy Duty 10 Ton White")
-                    if "10 Ton" not in (p.name or ""):
-                        p.name = (p.name or "") + " 10 Ton"
-                    updated += 1
             elif pn.startswith("FRP01") or pn.startswith("FRP04") or pn.startswith("FRP10"):
                 if p.load_rating != "5 Ton" or not p.load_rating:
                     p.load_rating = "5 Ton"
                     updated += 1
-                if "5 Ton" not in (p.name or "") and "10 Ton" not in (p.name or ""):
-                    p.name = (p.name or "").replace("Heavy Duty Grey", "Heavy Duty 5 Ton Grey").replace("Heavy Duty White", "Heavy Duty 5 Ton White")
-                    if "5 Ton" not in (p.name or "") and "10 Ton" not in (p.name or ""):
-                        p.name = (p.name or "") + " 5 Ton"
-                    updated += 1
-            if p.part_no.startswith("RGC") and "Gully" not in (p.name or ""):
-                p.name = p.name.replace("Manhole Cover", "Gully Cover")
-                updated += 1
         if updated:
             db.commit()
-            print(f"Backfilled pieces_per_box, names, and tonnage for {updated} products")
+            print(f"Backfilled pieces_per_box and tonnage for {updated} products")
     finally:
         db.close()
 
 
 PART_NO_CSV = [
-    ("FRP01101-GRY", "FRP Manhole Cover 10 X 10  Grey"),
-    ("FRP01103-GRY", "FRP Manhole Cover 12 X 12  Grey"),
-    ("FRP01106-GRY", "FRP Manhole Cover 15 X 15 Grey"),
-    ("FRP01109-GRY", "FRP Manhole Cover 18 X 18 Grey"),
-    ("FRP01112-GRY", "FRP Manhole Cover 21 X 21 Grey"),
-    ("FRP01115-GRY", "FRP Manhole Cover 24 X 24 Grey"),
-    ("FRP01117-GRY", "FRP Manhole Cover 26 X 26 Grey"),
-    ("FRP01119-GRY", "FRP Manhole Cover 28 X 28 Grey"),
-    ("FRP01121-GRY", "FRP Manhole Cover 30 X 30 Grey"),
-    ("FRP01127-GRY", "FRP Manhole Cover 36 X 36 Grey"),
-    ("FRP04106-GRY", "FRP Manhole Cover 12 X 18  Grey"),
-    ("FRP04112-GRY", "FRP Manhole Cover 12 X 24  Grey"),
-    ("FRP10106-GRY", "FRP Manhole Cover 18 X 24 Grey"),
-    ("FRP01101-WH", "FRP Manhole Cover 10 X 10 White"),
-    ("FRP01103-WH", "FRP Manhole Cover 12 X 12  White"),
-    ("FRP01106-WH", "FRP Manhole Cover 15 X 15 White"),
-    ("FRP01109-WH", "FRP Manhole Cover 18 X 18 White"),
-    ("FRP01112-WH", "FRP Manhole Cover 21 X 21 White"),
-    ("FRP01115-WH", "FRP Manhole Cover 24 X 24 White"),
-    ("FRP01117-WH", "FRP Manhole Cover 26 X 26 White"),
-    ("FRP01119-WH", "FRP Manhole Cover 28 X 28 White"),
-    ("FRP01121-WH", "FRP Manhole Cover 30 X 30 White"),
-    ("FRP01127-WH", "FRP Manhole Cover 36 X 36 White"),
-    ("FRP04106-WH", "FRP Manhole Cover 12 X 18  White"),
-    ("FRP04112-WH", "FRP Manhole Cover 12 X 24  White"),
-    ("FRP10106-WH", "FRP Manhole Cover 18 X 24  White"),
-    ("FRP01112-GRYL", "FRP Manhole Cover 21 X 21 Grey With Lock"),
-    ("FRP01115-GRYL", "FRP Manhole Cover 24 X 24 Grey With Lock"),
-    ("FRP01117-GRYL", "FRP Manhole Cover 26 X 26 Grey With Lock"),
-    ("FRP01119-GRYL", "FRP Manhole Cover 28 X 28 Grey With Lock"),
-    ("FRP01121-GRYL", "FRP Manhole Cover 30 X 30 Grey With Lock"),
-    ("FRP01127-GRYL", "FRP Manhole Cover 36 X 36 Grey With Lock"),
-    ("FRP01112-WHL", "FRP Manhole Cover 21 X 21 White With Lock"),
-    ("FRP01115-WHL", "FRP Manhole Cover 24 X 24 White With Lock"),
-    ("FRP01117-WHL", "FRP Manhole Cover 26 X 26 White With Lock"),
-    ("FRP01119-WHL", "FRP Manhole Cover 28 X 28 White With Lock"),
-    ("FRP01121-WHL", "FRP Manhole Cover 30 X 30 White With Lock"),
-    ("FRP01127-WHL", "FRP Manhole Cover 36 X 36 White With Lock"),
-    ("FRP01115-GRYH", "FRP Manhole Cover 24 X 24 Grey Double Hinges"),
-    ("FRP01115-WHH", "FRP Manhole Cover 24 X 24 White Double Hinges"),
-    ("FRP01115-GRY/H&L", "FRP Manhole Cover 24 X 24 Grey Double Hinges & Single Lock"),
-    ("FRP01115-WH/H&L", "FRP Manhole Cover 24 X 24 White Double Hinges & Single Lock"),
-    ("FRP01209-GRY", "FRP Manhole Cover 18 X 18 Heavy Duty Grey"),
-    ("FRP01215-GRY", "FRP Manhole Cover 24 X 24 Heavy Duty Grey"),
-    ("FRP01219-GRY", "FRP Manhole Cover 28 X 28 Heavy Duty Grey"),
-    ("FRP01221-GRY", "FRP Manhole Cover 30 X 30 Heavy Duty Grey"),
-    ("FRP01233-GRY", "FRP Manhole Cover 42 X 42 Heavy Duty Grey"),
-    ("FRP01209-WH", "FRP Manhole Cover 18 X 18 Heavy Duty White"),
-    ("FRP01215-WH", "FRP Manhole Cover 24 X 24 Heavy Duty White"),
-    ("FRP01219-WH", "FRP Manhole Cover 28 X 28 Heavy Duty White"),
-    ("FRP01221-WH", "FRP Manhole Cover 30 X 30 Heavy Duty White"),
-    ("FRP01233-WH", "FRP Manhole Cover 42 X 42 Heavy Duty White"),
-    ("RGC00001-GRY", "RAKSHA Gully Cover 10 X 10 Grey"),
-    ("RGC00002-GRY", "RAKSHA Gully Cover 12 X 12 Grey"),
-    ("RGC00003-GRY", "RAKSHA Gully Cover 15 X 15 Grey"),
-    ("RGC00004-GRY", "RAKSHA Gully Cover 18 X 18 Grey"),
-    ("RGC00005-GRY", "RAKSHA Gully Cover 24 X 24 Grey"),
-    ("RGC00001-WH", "RAKSHA Gully Cover 10 X 10 White"),
-    ("RGC00002-WH", "RAKSHA Gully Cover 12 X 12 White"),
-    ("RGC00003-WH", "RAKSHA Gully Cover 15 X 15 White"),
-    ("RGC00004-WH", "RAKSHA Gully Cover 18 X 18 White"),
-    ("RGC00005-WH", "RAKSHA Gully Cover 24 X 24 White"),
+    ("FRP01101-GRY", "Raksha FRP Manhole Cover 10x10 - 5 Ton Grey"),
+    ("FRP01103-GRY", "Raksha FRP Manhole Cover 12x12 - 5 Ton Grey"),
+    ("FRP01106-GRY", "Raksha FRP Manhole Cover 15x15 - 5 Ton Grey"),
+    ("FRP01109-GRY", "Raksha FRP Manhole Cover 18x18 - 5 Ton Grey"),
+    ("FRP01112-GRY", "Raksha FRP Manhole Cover 21x21 - 5 Ton Grey"),
+    ("FRP01115-GRY", "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey"),
+    ("FRP01117-GRY", "Raksha FRP Manhole Cover 26x26 - 5 Ton Grey"),
+    ("FRP01119-GRY", "Raksha FRP Manhole Cover 28x28 - 5 Ton Grey"),
+    ("FRP01121-GRY", "Raksha FRP Manhole Cover 30x30 - 5 Ton Grey"),
+    ("FRP01127-GRY", "Raksha FRP Manhole Cover 36x36 - 5 Ton Grey"),
+    ("FRP04106-GRY", "Raksha FRP Manhole Cover 12x18 - 5 Ton Grey"),
+    ("FRP04112-GRY", "Raksha FRP Manhole Cover 12x24 - 5 Ton Grey"),
+    ("FRP10106-GRY", "Raksha FRP Manhole Cover 18x24 - 5 Ton Grey"),
+    ("FRP01101-WH", "Raksha FRP Manhole Cover 10x10 - 5 Ton White"),
+    ("FRP01103-WH", "Raksha FRP Manhole Cover 12x12 - 5 Ton White"),
+    ("FRP01106-WH", "Raksha FRP Manhole Cover 15x15 - 5 Ton White"),
+    ("FRP01109-WH", "Raksha FRP Manhole Cover 18x18 - 5 Ton White"),
+    ("FRP01112-WH", "Raksha FRP Manhole Cover 21x21 - 5 Ton White"),
+    ("FRP01115-WH", "Raksha FRP Manhole Cover 24x24 - 5 Ton White"),
+    ("FRP01117-WH", "Raksha FRP Manhole Cover 26x26 - 5 Ton White"),
+    ("FRP01119-WH", "Raksha FRP Manhole Cover 28x28 - 5 Ton White"),
+    ("FRP01121-WH", "Raksha FRP Manhole Cover 30x30 - 5 Ton White"),
+    ("FRP01127-WH", "Raksha FRP Manhole Cover 36x36 - 5 Ton White"),
+    ("FRP04106-WH", "Raksha FRP Manhole Cover 12x18 - 5 Ton White"),
+    ("FRP04112-WH", "Raksha FRP Manhole Cover 12x24 - 5 Ton White"),
+    ("FRP10106-WH", "Raksha FRP Manhole Cover 18x24 - 5 Ton White"),
+    ("FRP01112-GRYL", "Raksha FRP Manhole Cover 21x21 - 5 Ton Grey (with Lock)"),
+    ("FRP01115-GRYL", "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey (with Lock)"),
+    ("FRP01117-GRYL", "Raksha FRP Manhole Cover 26x26 - 5 Ton Grey (with Lock)"),
+    ("FRP01119-GRYL", "Raksha FRP Manhole Cover 28x28 - 5 Ton Grey (with Lock)"),
+    ("FRP01121-GRYL", "Raksha FRP Manhole Cover 30x30 - 5 Ton Grey (with Lock)"),
+    ("FRP01127-GRYL", "Raksha FRP Manhole Cover 36x36 - 5 Ton Grey (with Lock)"),
+    ("FRP01112-WHL", "Raksha FRP Manhole Cover 21x21 - 5 Ton White (with Lock)"),
+    ("FRP01115-WHL", "Raksha FRP Manhole Cover 24x24 - 5 Ton White (with Lock)"),
+    ("FRP01117-WHL", "Raksha FRP Manhole Cover 26x26 - 5 Ton White (with Lock)"),
+    ("FRP01119-WHL", "Raksha FRP Manhole Cover 28x28 - 5 Ton White (with Lock)"),
+    ("FRP01121-WHL", "Raksha FRP Manhole Cover 30x30 - 5 Ton White (with Lock)"),
+    ("FRP01127-WHL", "Raksha FRP Manhole Cover 36x36 - 5 Ton White (with Lock)"),
+    ("FRP01115-GRYH", "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey (Double Hinges)"),
+    ("FRP01115-WHH", "Raksha FRP Manhole Cover 24x24 - 5 Ton White (Double Hinges)"),
+    ("FRP01115-GRY/H&L", "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey (Double Hinges & Lock)"),
+    ("FRP01115-WH/H&L", "Raksha FRP Manhole Cover 24x24 - 5 Ton White (Double Hinges & Lock)"),
+    ("FRP01209-GRY", "Raksha FRP Manhole Cover 18x18 - 10 Ton Grey"),
+    ("FRP01215-GRY", "Raksha FRP Manhole Cover 24x24 - 10 Ton Grey"),
+    ("FRP01219-GRY", "Raksha FRP Manhole Cover 28x28 - 10 Ton Grey"),
+    ("FRP01221-GRY", "Raksha FRP Manhole Cover 30x30 - 10 Ton Grey"),
+    ("FRP01233-GRY", "Raksha FRP Manhole Cover 42x42 - 10 Ton Grey"),
+    ("FRP01209-WH", "Raksha FRP Manhole Cover 18x18 - 10 Ton White"),
+    ("FRP01215-WH", "Raksha FRP Manhole Cover 24x24 - 10 Ton White"),
+    ("FRP01219-WH", "Raksha FRP Manhole Cover 28x28 - 10 Ton White"),
+    ("FRP01221-WH", "Raksha FRP Manhole Cover 30x30 - 10 Ton White"),
+    ("FRP01233-WH", "Raksha FRP Manhole Cover 42x42 - 10 Ton White"),
+    ("RGC00001-GRY", "Raksha FRP Gully Cover 10x10 - Grey"),
+    ("RGC00002-GRY", "Raksha FRP Gully Cover 12x12 - Grey"),
+    ("RGC00003-GRY", "Raksha FRP Gully Cover 15x15 - Grey"),
+    ("RGC00004-GRY", "Raksha FRP Gully Cover 18x18 - Grey"),
+    ("RGC00005-GRY", "Raksha FRP Gully Cover 24x24 - Grey"),
+    ("RGC00001-WH", "Raksha FRP Gully Cover 10x10 - White"),
+    ("RGC00002-WH", "Raksha FRP Gully Cover 12x12 - White"),
+    ("RGC00003-WH", "Raksha FRP Gully Cover 15x15 - White"),
+    ("RGC00004-WH", "Raksha FRP Gully Cover 18x18 - White"),
+    ("RGC00005-WH", "Raksha FRP Gully Cover 24x24 - White"),
 ]
 
 
@@ -471,36 +457,45 @@ def generate_part_no(product):
     size = (product.size or "").lower().replace(" ", "")
     color = (product.color or "").lower()
     has_lock = "lock" in name_lower
+    has_hinges = "hinge" in name_lower
     is_gully = "gully" in name_lower
+    is_10ton = "10 ton" in name_lower
 
     size_dim_map = {
-        "250x250": ("10x10", "10X10"), "300x300": ("12x12", "12X12"),
-        "380x380": ("15x15", "15X15"), "450x450": ("18x18", "18X18"),
-        "535x535": ("21x21", "21X21"), "600x600": ("24x24", "24X24"),
-        "660x660": ("26x26", "26X26"), "710x710": ("28x28", "28X28"),
-        "760x760": ("30x30", "30X30"), "900x900": ("36x36", "36X36"),
-        "1065x1065": ("42x42", "42X42"),
-        "300x450": ("12x18", "12X18"), "300x600": ("12x24", "12X24"),
-        "450x600": ("18x24", "18X24"),
+        "250x250": ("10x10", "10x10"), "300x300": ("12x12", "12x12"),
+        "380x380": ("15x15", "15x15"), "450x450": ("18x18", "18x18"),
+        "535x535": ("21x21", "21x21"), "600x600": ("24x24", "24x24"),
+        "660x660": ("26x26", "26x26"), "710x710": ("28x28", "28x28"),
+        "760x760": ("30x30", "30x30"), "900x900": ("36x36", "36x36"),
+        "1065x1065": ("42x42", "42x42"),
+        "300x450": ("12x18", "12x18"), "300x600": ("12x24", "12x24"),
+        "450x600": ("18x24", "18x24"),
     }
     nominal = size_dim_map.get(size)
     if not nominal:
         m = re.search(r'(\d+)\s*x\s*(\d+)', product.size or product.name or "")
         if m:
-            nominal = (f"{m.group(1)}x{m.group(2)}", f"{m.group(1)}X{m.group(2)}")
+            nominal = (f"{m.group(1)}x{m.group(2)}", f"{m.group(1)}x{m.group(2)}")
         else:
             return ""
 
     nom_lower = nominal[0]
-    nom_upper = nominal[1]
-    color_code = "WH" if "white" in color else "GRY"
-    if has_lock:
-        color_code += "L"
+    color_name = "White" if "white" in color else "Grey"
+    tonnage = "10 Ton" if is_10ton else "5 Ton"
+
+    suffix = ""
+    if has_hinges and has_lock:
+        suffix = " (Double Hinges & Lock)"
+    elif has_hinges:
+        suffix = " (Double Hinges)"
+    elif has_lock:
+        suffix = " (with Lock)"
 
     prefix = "RGC" if is_gully else "FRP"
-    csv_desc = f"{prefix} {nom_upper} {('Grey' if 'grey' in color else 'White')}"
-    if has_lock:
-        csv_desc += " With Lock"
+    if is_gully:
+        csv_desc = f"Raksha FRP Gully Cover {nom_lower} - {color_name}{suffix}"
+    else:
+        csv_desc = f"Raksha FRP Manhole Cover {nom_lower} - {tonnage} {color_name}{suffix}"
 
     for pn, desc in PART_NO_CSV:
         if desc.strip().lower() == csv_desc.strip().lower():
@@ -525,6 +520,66 @@ def backfill_part_numbers():
         db.close()
 
 
+def get_new_product_name(part_no, old_name=""):
+    pn = (part_no or "").upper().replace(" ", "")
+    is_gully = pn.startswith("RGC")
+    is_10ton = pn.startswith("FRP012")
+
+    suffix = ""
+    if pn.endswith("/H&L"):
+        suffix = " (Double Hinges & Lock)"
+    elif pn.endswith("H") and not pn.endswith("-WH"):
+        suffix = " (Double Hinges)"
+    elif pn.endswith("L") and "GRY" not in pn[-4:]:
+        suffix = " (with Lock)"
+
+    color = "White" if "-WH" in pn else "Grey"
+
+    size_map = {
+        "FRP01101": "10x10", "FRP01103": "12x12", "FRP01106": "15x15",
+        "FRP01109": "18x18", "FRP01112": "21x21", "FRP01115": "24x24",
+        "FRP01117": "26x26", "FRP01119": "28x28", "FRP01121": "30x30",
+        "FRP01127": "36x36", "FRP04106": "12x18", "FRP04112": "12x24",
+        "FRP10106": "18x24", "FRP01209": "18x18", "FRP01215": "24x24",
+        "FRP01219": "28x28", "FRP01221": "30x30", "FRP01233": "42x42",
+        "RGC00001": "10x10", "RGC00002": "12x12", "RGC00003": "15x15",
+        "RGC00004": "18x18", "RGC00005": "24x24",
+    }
+
+    size = ""
+    for prefix, sz in size_map.items():
+        if pn.startswith(prefix):
+            size = sz
+            break
+
+    if not size:
+        m = __import__("re").search(r"(\d+)\s*[xX]\s*(\d+)", old_name or "")
+        if m:
+            size = f"{m.group(1)}x{m.group(2)}"
+
+    if is_gully:
+        return f"Raksha FRP Gully Cover {size} - {color}{suffix}"
+
+    tonnage = "10 Ton" if is_10ton else "5 Ton"
+    return f"Raksha FRP Manhole Cover {size} - {tonnage} {color}{suffix}"
+
+
+def backfill_product_names():
+    db = SessionLocal()
+    try:
+        updated = 0
+        for p in db.query(Product).all():
+            new_name = get_new_product_name(p.part_no, p.name)
+            if new_name and new_name != p.name:
+                p.name = new_name
+                updated += 1
+        if updated:
+            db.commit()
+            print(f"Backfilled product names for {updated} products")
+    finally:
+        db.close()
+
+
 def seed_data():
     db = SessionLocal()
     try:
@@ -539,78 +594,78 @@ def seed_data():
             return
 
         products = [
-            # Manhole Cover - Grey
-            {"part_no": "FRP01101-GRY", "name": "RAKSHA Manhole Cover 10 X 10 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "10x10", "color": "Grey", "rate": 190, "mrp": 686, "ppb": 12, "tonnage": "5 Ton"},
-            {"part_no": "FRP01103-GRY", "name": "RAKSHA Manhole Cover 12 X 12 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "12x12", "color": "Grey", "rate": 242, "mrp": 830, "ppb": 6, "tonnage": "5 Ton"},
-            {"part_no": "FRP01106-GRY", "name": "RAKSHA Manhole Cover 15 X 15 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "15x15", "color": "Grey", "rate": 310, "mrp": 1046, "ppb": 6, "tonnage": "5 Ton"},
-            {"part_no": "FRP01109-GRY", "name": "RAKSHA Manhole Cover 18 X 18 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "18x18", "color": "Grey", "rate": 455, "mrp": 1536, "ppb": 4, "tonnage": "5 Ton"},
-            {"part_no": "FRP01112-GRY", "name": "RAKSHA Manhole Cover 21 X 21 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "21x21", "color": "Grey", "rate": 640, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
-            {"part_no": "FRP01115-GRY", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 765, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            {"part_no": "FRP01117-GRY", "name": "RAKSHA Manhole Cover 26 X 26 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "26x26", "color": "Grey", "rate": 1130, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01119-GRY", "name": "RAKSHA Manhole Cover 28 X 28 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 1500, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01121-GRY", "name": "RAKSHA Manhole Cover 30 X 30 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 1750, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01127-GRY", "name": "RAKSHA Manhole Cover 36 X 36 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "36x36", "color": "Grey", "rate": 3200, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP04106-GRY", "name": "RAKSHA Manhole Cover 12 X 18 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "12x18", "color": "Grey", "rate": 350, "mrp": 1154, "ppb": 6, "tonnage": "5 Ton"},
-            {"part_no": "FRP04112-GRY", "name": "RAKSHA Manhole Cover 12 X 24 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "12x24", "color": "Grey", "rate": 500, "mrp": 1624, "ppb": 5, "tonnage": "5 Ton"},
-            {"part_no": "FRP10106-GRY", "name": "RAKSHA Manhole Cover 18 X 24 Heavy Duty 5 Ton Grey", "category": "Manhole Cover", "size": "18x24", "color": "Grey", "rate": 620, "mrp": 2020, "ppb": 3, "tonnage": "5 Ton"},
-            # Manhole Cover - White
-            {"part_no": "FRP01101-WH", "name": "RAKSHA Manhole Cover 10 X 10 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "10x10", "color": "White", "rate": 190, "mrp": 686, "ppb": 12, "tonnage": "5 Ton"},
-            {"part_no": "FRP01103-WH", "name": "RAKSHA Manhole Cover 12 X 12 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "12x12", "color": "White", "rate": 242, "mrp": 830, "ppb": 6, "tonnage": "5 Ton"},
-            {"part_no": "FRP01106-WH", "name": "RAKSHA Manhole Cover 15 X 15 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "15x15", "color": "White", "rate": 310, "mrp": 1046, "ppb": 6, "tonnage": "5 Ton"},
-            {"part_no": "FRP01109-WH", "name": "RAKSHA Manhole Cover 18 X 18 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "18x18", "color": "White", "rate": 455, "mrp": 1536, "ppb": 4, "tonnage": "5 Ton"},
-            {"part_no": "FRP01112-WH", "name": "RAKSHA Manhole Cover 21 X 21 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "21x21", "color": "White", "rate": 640, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
-            {"part_no": "FRP01115-WH", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 765, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            {"part_no": "FRP01117-WH", "name": "RAKSHA Manhole Cover 26 X 26 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "26x26", "color": "White", "rate": 1130, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01119-WH", "name": "RAKSHA Manhole Cover 28 X 28 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 1500, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01121-WH", "name": "RAKSHA Manhole Cover 30 X 30 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 1750, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01127-WH", "name": "RAKSHA Manhole Cover 36 X 36 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "36x36", "color": "White", "rate": 3200, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP04106-WH", "name": "RAKSHA Manhole Cover 12 X 18 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "12x18", "color": "White", "rate": 350, "mrp": 1154, "ppb": 6, "tonnage": "5 Ton"},
-            {"part_no": "FRP04112-WH", "name": "RAKSHA Manhole Cover 12 X 24 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "12x24", "color": "White", "rate": 500, "mrp": 1624, "ppb": 5, "tonnage": "5 Ton"},
-            {"part_no": "FRP10106-WH", "name": "RAKSHA Manhole Cover 18 X 24 Heavy Duty 5 Ton White", "category": "Manhole Cover", "size": "18x24", "color": "White", "rate": 620, "mrp": 2020, "ppb": 3, "tonnage": "5 Ton"},
-            # Manhole Cover - Grey With Lock
-            {"part_no": "FRP01112-GRYL", "name": "RAKSHA Manhole Cover 21 X 21 Heavy Duty 5 Ton Grey With Lock", "category": "Manhole Cover", "size": "21x21", "color": "Grey", "rate": 710, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
-            {"part_no": "FRP01115-GRYL", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton Grey With Lock", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 835, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            {"part_no": "FRP01117-GRYL", "name": "RAKSHA Manhole Cover 26 X 26 Heavy Duty 5 Ton Grey With Lock", "category": "Manhole Cover", "size": "26x26", "color": "Grey", "rate": 1270, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01119-GRYL", "name": "RAKSHA Manhole Cover 28 X 28 Heavy Duty 5 Ton Grey With Lock", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 1640, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01121-GRYL", "name": "RAKSHA Manhole Cover 30 X 30 Heavy Duty 5 Ton Grey With Lock", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 1890, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01127-GRYL", "name": "RAKSHA Manhole Cover 36 X 36 Heavy Duty 5 Ton Grey With Lock", "category": "Manhole Cover", "size": "36x36", "color": "Grey", "rate": 3340, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
-            # Manhole Cover - White With Lock
-            {"part_no": "FRP01112-WHL", "name": "RAKSHA Manhole Cover 21 X 21 Heavy Duty 5 Ton White With Lock", "category": "Manhole Cover", "size": "21x21", "color": "White", "rate": 710, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
-            {"part_no": "FRP01115-WHL", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton White With Lock", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 835, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            {"part_no": "FRP01117-WHL", "name": "RAKSHA Manhole Cover 26 X 26 Heavy Duty 5 Ton White With Lock", "category": "Manhole Cover", "size": "26x26", "color": "White", "rate": 1270, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01119-WHL", "name": "RAKSHA Manhole Cover 28 X 28 Heavy Duty 5 Ton White With Lock", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 1640, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01121-WHL", "name": "RAKSHA Manhole Cover 30 X 30 Heavy Duty 5 Ton White With Lock", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 1890, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
-            {"part_no": "FRP01127-WHL", "name": "RAKSHA Manhole Cover 36 X 36 Heavy Duty 5 Ton White With Lock", "category": "Manhole Cover", "size": "36x36", "color": "White", "rate": 3340, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
-            # Manhole Cover - Double Hinges
-            {"part_no": "FRP01115-GRYH", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton Grey Double Hinges", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 965, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            {"part_no": "FRP01115-WHH", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton White Double Hinges", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 965, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            # Manhole Cover - Double Hinges & Single Lock
-            {"part_no": "FRP01115-GRY/H&L", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton Grey Double Hinges & Single Lock", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 1065, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            {"part_no": "FRP01115-WH/H&L", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 5 Ton White Double Hinges & Single Lock", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 1065, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
-            # Heavy Duty Manhole Cover - Grey
-            {"part_no": "FRP01209-GRY", "name": "RAKSHA Manhole Cover 18 X 18 Heavy Duty 10 Ton Grey", "category": "Manhole Cover", "size": "18x18", "color": "Grey", "rate": 1200, "mrp": 3340, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01215-GRY", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 10 Ton Grey", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 2200, "mrp": 6042, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01219-GRY", "name": "RAKSHA Manhole Cover 28 X 28 Heavy Duty 10 Ton Grey", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 3100, "mrp": 8504, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01221-GRY", "name": "RAKSHA Manhole Cover 30 X 30 Heavy Duty 10 Ton Grey", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 3800, "mrp": 10414, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01233-GRY", "name": "RAKSHA Manhole Cover 42 X 42 Heavy Duty 10 Ton Grey", "category": "Manhole Cover", "size": "42x42", "color": "Grey", "rate": 11000, "mrp": 30208, "ppb": 1, "tonnage": "10 Ton"},
-            # Heavy Duty Manhole Cover - White
-            {"part_no": "FRP01209-WH", "name": "RAKSHA Manhole Cover 18 X 18 Heavy Duty 10 Ton White", "category": "Manhole Cover", "size": "18x18", "color": "White", "rate": 1200, "mrp": 3340, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01215-WH", "name": "RAKSHA Manhole Cover 24 X 24 Heavy Duty 10 Ton White", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 2200, "mrp": 6042, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01219-WH", "name": "RAKSHA Manhole Cover 28 X 28 Heavy Duty 10 Ton White", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 3100, "mrp": 8504, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01221-WH", "name": "RAKSHA Manhole Cover 30 X 30 Heavy Duty 10 Ton White", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 3800, "mrp": 10414, "ppb": 1, "tonnage": "10 Ton"},
-            {"part_no": "FRP01233-WH", "name": "RAKSHA Manhole Cover 42 X 42 Heavy Duty 10 Ton White", "category": "Manhole Cover", "size": "42x42", "color": "White", "rate": 11000, "mrp": 30208, "ppb": 1, "tonnage": "10 Ton"},
+            # Manhole Cover - Grey (5 Ton)
+            {"part_no": "FRP01101-GRY", "name": "Raksha FRP Manhole Cover 10x10 - 5 Ton Grey", "category": "Manhole Cover", "size": "10x10", "color": "Grey", "rate": 190, "mrp": 686, "ppb": 12, "tonnage": "5 Ton"},
+            {"part_no": "FRP01103-GRY", "name": "Raksha FRP Manhole Cover 12x12 - 5 Ton Grey", "category": "Manhole Cover", "size": "12x12", "color": "Grey", "rate": 242, "mrp": 830, "ppb": 6, "tonnage": "5 Ton"},
+            {"part_no": "FRP01106-GRY", "name": "Raksha FRP Manhole Cover 15x15 - 5 Ton Grey", "category": "Manhole Cover", "size": "15x15", "color": "Grey", "rate": 310, "mrp": 1046, "ppb": 6, "tonnage": "5 Ton"},
+            {"part_no": "FRP01109-GRY", "name": "Raksha FRP Manhole Cover 18x18 - 5 Ton Grey", "category": "Manhole Cover", "size": "18x18", "color": "Grey", "rate": 455, "mrp": 1536, "ppb": 4, "tonnage": "5 Ton"},
+            {"part_no": "FRP01112-GRY", "name": "Raksha FRP Manhole Cover 21x21 - 5 Ton Grey", "category": "Manhole Cover", "size": "21x21", "color": "Grey", "rate": 640, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
+            {"part_no": "FRP01115-GRY", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 765, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            {"part_no": "FRP01117-GRY", "name": "Raksha FRP Manhole Cover 26x26 - 5 Ton Grey", "category": "Manhole Cover", "size": "26x26", "color": "Grey", "rate": 1130, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01119-GRY", "name": "Raksha FRP Manhole Cover 28x28 - 5 Ton Grey", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 1500, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01121-GRY", "name": "Raksha FRP Manhole Cover 30x30 - 5 Ton Grey", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 1750, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01127-GRY", "name": "Raksha FRP Manhole Cover 36x36 - 5 Ton Grey", "category": "Manhole Cover", "size": "36x36", "color": "Grey", "rate": 3200, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP04106-GRY", "name": "Raksha FRP Manhole Cover 12x18 - 5 Ton Grey", "category": "Manhole Cover", "size": "12x18", "color": "Grey", "rate": 350, "mrp": 1154, "ppb": 6, "tonnage": "5 Ton"},
+            {"part_no": "FRP04112-GRY", "name": "Raksha FRP Manhole Cover 12x24 - 5 Ton Grey", "category": "Manhole Cover", "size": "12x24", "color": "Grey", "rate": 500, "mrp": 1624, "ppb": 5, "tonnage": "5 Ton"},
+            {"part_no": "FRP10106-GRY", "name": "Raksha FRP Manhole Cover 18x24 - 5 Ton Grey", "category": "Manhole Cover", "size": "18x24", "color": "Grey", "rate": 620, "mrp": 2020, "ppb": 3, "tonnage": "5 Ton"},
+            # Manhole Cover - White (5 Ton)
+            {"part_no": "FRP01101-WH", "name": "Raksha FRP Manhole Cover 10x10 - 5 Ton White", "category": "Manhole Cover", "size": "10x10", "color": "White", "rate": 190, "mrp": 686, "ppb": 12, "tonnage": "5 Ton"},
+            {"part_no": "FRP01103-WH", "name": "Raksha FRP Manhole Cover 12x12 - 5 Ton White", "category": "Manhole Cover", "size": "12x12", "color": "White", "rate": 242, "mrp": 830, "ppb": 6, "tonnage": "5 Ton"},
+            {"part_no": "FRP01106-WH", "name": "Raksha FRP Manhole Cover 15x15 - 5 Ton White", "category": "Manhole Cover", "size": "15x15", "color": "White", "rate": 310, "mrp": 1046, "ppb": 6, "tonnage": "5 Ton"},
+            {"part_no": "FRP01109-WH", "name": "Raksha FRP Manhole Cover 18x18 - 5 Ton White", "category": "Manhole Cover", "size": "18x18", "color": "White", "rate": 455, "mrp": 1536, "ppb": 4, "tonnage": "5 Ton"},
+            {"part_no": "FRP01112-WH", "name": "Raksha FRP Manhole Cover 21x21 - 5 Ton White", "category": "Manhole Cover", "size": "21x21", "color": "White", "rate": 640, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
+            {"part_no": "FRP01115-WH", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton White", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 765, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            {"part_no": "FRP01117-WH", "name": "Raksha FRP Manhole Cover 26x26 - 5 Ton White", "category": "Manhole Cover", "size": "26x26", "color": "White", "rate": 1130, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01119-WH", "name": "Raksha FRP Manhole Cover 28x28 - 5 Ton White", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 1500, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01121-WH", "name": "Raksha FRP Manhole Cover 30x30 - 5 Ton White", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 1750, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01127-WH", "name": "Raksha FRP Manhole Cover 36x36 - 5 Ton White", "category": "Manhole Cover", "size": "36x36", "color": "White", "rate": 3200, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP04106-WH", "name": "Raksha FRP Manhole Cover 12x18 - 5 Ton White", "category": "Manhole Cover", "size": "12x18", "color": "White", "rate": 350, "mrp": 1154, "ppb": 6, "tonnage": "5 Ton"},
+            {"part_no": "FRP04112-WH", "name": "Raksha FRP Manhole Cover 12x24 - 5 Ton White", "category": "Manhole Cover", "size": "12x24", "color": "White", "rate": 500, "mrp": 1624, "ppb": 5, "tonnage": "5 Ton"},
+            {"part_no": "FRP10106-WH", "name": "Raksha FRP Manhole Cover 18x24 - 5 Ton White", "category": "Manhole Cover", "size": "18x24", "color": "White", "rate": 620, "mrp": 2020, "ppb": 3, "tonnage": "5 Ton"},
+            # Manhole Cover - Grey With Lock (5 Ton)
+            {"part_no": "FRP01112-GRYL", "name": "Raksha FRP Manhole Cover 21x21 - 5 Ton Grey (with Lock)", "category": "Manhole Cover", "size": "21x21", "color": "Grey", "rate": 710, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
+            {"part_no": "FRP01115-GRYL", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey (with Lock)", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 835, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            {"part_no": "FRP01117-GRYL", "name": "Raksha FRP Manhole Cover 26x26 - 5 Ton Grey (with Lock)", "category": "Manhole Cover", "size": "26x26", "color": "Grey", "rate": 1270, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01119-GRYL", "name": "Raksha FRP Manhole Cover 28x28 - 5 Ton Grey (with Lock)", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 1640, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01121-GRYL", "name": "Raksha FRP Manhole Cover 30x30 - 5 Ton Grey (with Lock)", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 1890, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01127-GRYL", "name": "Raksha FRP Manhole Cover 36x36 - 5 Ton Grey (with Lock)", "category": "Manhole Cover", "size": "36x36", "color": "Grey", "rate": 3340, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
+            # Manhole Cover - White With Lock (5 Ton)
+            {"part_no": "FRP01112-WHL", "name": "Raksha FRP Manhole Cover 21x21 - 5 Ton White (with Lock)", "category": "Manhole Cover", "size": "21x21", "color": "White", "rate": 710, "mrp": 2130, "ppb": 3, "tonnage": "5 Ton"},
+            {"part_no": "FRP01115-WHL", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton White (with Lock)", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 835, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            {"part_no": "FRP01117-WHL", "name": "Raksha FRP Manhole Cover 26x26 - 5 Ton White (with Lock)", "category": "Manhole Cover", "size": "26x26", "color": "White", "rate": 1270, "mrp": 3266, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01119-WHL", "name": "Raksha FRP Manhole Cover 28x28 - 5 Ton White (with Lock)", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 1640, "mrp": 4934, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01121-WHL", "name": "Raksha FRP Manhole Cover 30x30 - 5 Ton White (with Lock)", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 1890, "mrp": 5854, "ppb": 1, "tonnage": "5 Ton"},
+            {"part_no": "FRP01127-WHL", "name": "Raksha FRP Manhole Cover 36x36 - 5 Ton White (with Lock)", "category": "Manhole Cover", "size": "36x36", "color": "White", "rate": 3340, "mrp": 11454, "ppb": 1, "tonnage": "5 Ton"},
+            # Manhole Cover - Double Hinges (5 Ton)
+            {"part_no": "FRP01115-GRYH", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey (Double Hinges)", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 965, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            {"part_no": "FRP01115-WHH", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton White (Double Hinges)", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 965, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            # Manhole Cover - Double Hinges & Lock (5 Ton)
+            {"part_no": "FRP01115-GRY/H&L", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton Grey (Double Hinges & Lock)", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 1065, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            {"part_no": "FRP01115-WH/H&L", "name": "Raksha FRP Manhole Cover 24x24 - 5 Ton White (Double Hinges & Lock)", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 1065, "mrp": 2560, "ppb": 2, "tonnage": "5 Ton"},
+            # Heavy Duty Manhole Cover - Grey (10 Ton)
+            {"part_no": "FRP01209-GRY", "name": "Raksha FRP Manhole Cover 18x18 - 10 Ton Grey", "category": "Manhole Cover", "size": "18x18", "color": "Grey", "rate": 1200, "mrp": 3340, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01215-GRY", "name": "Raksha FRP Manhole Cover 24x24 - 10 Ton Grey", "category": "Manhole Cover", "size": "24x24", "color": "Grey", "rate": 2200, "mrp": 6042, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01219-GRY", "name": "Raksha FRP Manhole Cover 28x28 - 10 Ton Grey", "category": "Manhole Cover", "size": "28x28", "color": "Grey", "rate": 3100, "mrp": 8504, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01221-GRY", "name": "Raksha FRP Manhole Cover 30x30 - 10 Ton Grey", "category": "Manhole Cover", "size": "30x30", "color": "Grey", "rate": 3800, "mrp": 10414, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01233-GRY", "name": "Raksha FRP Manhole Cover 42x42 - 10 Ton Grey", "category": "Manhole Cover", "size": "42x42", "color": "Grey", "rate": 11000, "mrp": 30208, "ppb": 1, "tonnage": "10 Ton"},
+            # Heavy Duty Manhole Cover - White (10 Ton)
+            {"part_no": "FRP01209-WH", "name": "Raksha FRP Manhole Cover 18x18 - 10 Ton White", "category": "Manhole Cover", "size": "18x18", "color": "White", "rate": 1200, "mrp": 3340, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01215-WH", "name": "Raksha FRP Manhole Cover 24x24 - 10 Ton White", "category": "Manhole Cover", "size": "24x24", "color": "White", "rate": 2200, "mrp": 6042, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01219-WH", "name": "Raksha FRP Manhole Cover 28x28 - 10 Ton White", "category": "Manhole Cover", "size": "28x28", "color": "White", "rate": 3100, "mrp": 8504, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01221-WH", "name": "Raksha FRP Manhole Cover 30x30 - 10 Ton White", "category": "Manhole Cover", "size": "30x30", "color": "White", "rate": 3800, "mrp": 10414, "ppb": 1, "tonnage": "10 Ton"},
+            {"part_no": "FRP01233-WH", "name": "Raksha FRP Manhole Cover 42x42 - 10 Ton White", "category": "Manhole Cover", "size": "42x42", "color": "White", "rate": 11000, "mrp": 30208, "ppb": 1, "tonnage": "10 Ton"},
             # Gully Cover - Grey
-            {"part_no": "RGC00001-GRY", "name": "RAKSHA Gully Cover 10 X 10 Grey", "category": "Gully Cover", "size": "10x10", "color": "Grey", "rate": 240, "mrp": 806, "ppb": 12},
-            {"part_no": "RGC00002-GRY", "name": "RAKSHA Gully Cover 12 X 12 Grey", "category": "Gully Cover", "size": "12x12", "color": "Grey", "rate": 325, "mrp": 984, "ppb": 6},
-            {"part_no": "RGC00003-GRY", "name": "RAKSHA Gully Cover 15 X 15 Grey", "category": "Gully Cover", "size": "15x15", "color": "Grey", "rate": 440, "mrp": 1380, "ppb": 6},
-            {"part_no": "RGC00004-GRY", "name": "RAKSHA Gully Cover 18 X 18 Grey", "category": "Gully Cover", "size": "18x18", "color": "Grey", "rate": 570, "mrp": 2012, "ppb": 4},
-            {"part_no": "RGC00005-GRY", "name": "RAKSHA Gully Cover 24 X 24 Grey", "category": "Gully Cover", "size": "24x24", "color": "Grey", "rate": 1160, "mrp": 3910, "ppb": 2},
+            {"part_no": "RGC00001-GRY", "name": "Raksha FRP Gully Cover 10x10 - Grey", "category": "Gully Cover", "size": "10x10", "color": "Grey", "rate": 240, "mrp": 806, "ppb": 12},
+            {"part_no": "RGC00002-GRY", "name": "Raksha FRP Gully Cover 12x12 - Grey", "category": "Gully Cover", "size": "12x12", "color": "Grey", "rate": 325, "mrp": 984, "ppb": 6},
+            {"part_no": "RGC00003-GRY", "name": "Raksha FRP Gully Cover 15x15 - Grey", "category": "Gully Cover", "size": "15x15", "color": "Grey", "rate": 440, "mrp": 1380, "ppb": 6},
+            {"part_no": "RGC00004-GRY", "name": "Raksha FRP Gully Cover 18x18 - Grey", "category": "Gully Cover", "size": "18x18", "color": "Grey", "rate": 570, "mrp": 2012, "ppb": 4},
+            {"part_no": "RGC00005-GRY", "name": "Raksha FRP Gully Cover 24x24 - Grey", "category": "Gully Cover", "size": "24x24", "color": "Grey", "rate": 1160, "mrp": 3910, "ppb": 2},
             # Gully Cover - White
-            {"part_no": "RGC00001-WH", "name": "RAKSHA Gully Cover 10 X 10 White", "category": "Gully Cover", "size": "10x10", "color": "White", "rate": 240, "mrp": 806, "ppb": 12},
-            {"part_no": "RGC00002-WH", "name": "RAKSHA Gully Cover 12 X 12 White", "category": "Gully Cover", "size": "12x12", "color": "White", "rate": 325, "mrp": 984, "ppb": 6},
-            {"part_no": "RGC00003-WH", "name": "RAKSHA Gully Cover 15 X 15 White", "category": "Gully Cover", "size": "15x15", "color": "White", "rate": 440, "mrp": 1380, "ppb": 6},
-            {"part_no": "RGC00004-WH", "name": "RAKSHA Gully Cover 18 X 18 White", "category": "Gully Cover", "size": "18x18", "color": "White", "rate": 570, "mrp": 2012, "ppb": 4},
-            {"part_no": "RGC00005-WH", "name": "RAKSHA Gully Cover 24 X 24 White", "category": "Gully Cover", "size": "24x24", "color": "White", "rate": 1160, "mrp": 3910, "ppb": 2},
+            {"part_no": "RGC00001-WH", "name": "Raksha FRP Gully Cover 10x10 - White", "category": "Gully Cover", "size": "10x10", "color": "White", "rate": 240, "mrp": 806, "ppb": 12},
+            {"part_no": "RGC00002-WH", "name": "Raksha FRP Gully Cover 12x12 - White", "category": "Gully Cover", "size": "12x12", "color": "White", "rate": 325, "mrp": 984, "ppb": 6},
+            {"part_no": "RGC00003-WH", "name": "Raksha FRP Gully Cover 15x15 - White", "category": "Gully Cover", "size": "15x15", "color": "White", "rate": 440, "mrp": 1380, "ppb": 6},
+            {"part_no": "RGC00004-WH", "name": "Raksha FRP Gully Cover 18x18 - White", "category": "Gully Cover", "size": "18x18", "color": "White", "rate": 570, "mrp": 2012, "ppb": 4},
+            {"part_no": "RGC00005-WH", "name": "Raksha FRP Gully Cover 24x24 - White", "category": "Gully Cover", "size": "24x24", "color": "White", "rate": 1160, "mrp": 3910, "ppb": 2},
         ]
 
         pid = 1
@@ -694,6 +749,7 @@ class SaleIn(BaseModel):
     unit_price: float
     discount_percent: float = 0
     freight_amount: float = 0
+    invoice_value: float = 0
     payment_status: str = "Pending"
     payment_method: str = "Cash"
     notes: str = ""
@@ -1496,6 +1552,7 @@ def list_sales():
                     "weight_kgs": s.weight_kgs or 0,
                     "gp": s.gp or 0,
                     "gp_percent": s.gp_percent or 0,
+                    "invoice_value": s.invoice_value or 0,
                     "total_amount": s.total_amount or 0,
                     "sale_date": s.sale_date.isoformat() if s.sale_date else None,
                     "payment_terms": s.payment_terms or "",
@@ -1537,7 +1594,7 @@ def create_sale(inp: SaleIn):
             sgst_rate=gst_rate / 2, sgst_amount=sgst,
             freight_amount=inp.freight_amount, total_amount=total,
             payment_status=inp.payment_status, payment_method=inp.payment_method,
-            notes=inp.notes
+            invoice_value=inp.invoice_value, notes=inp.notes
         )
         db.add(s)
         db.commit()
@@ -1596,6 +1653,7 @@ def update_sale(sid: int, inp: SaleIn):
         s.total_amount = total
         s.payment_status = inp.payment_status
         s.payment_method = inp.payment_method
+        s.invoice_value = inp.invoice_value
         s.notes = inp.notes
 
         db.commit()
@@ -1965,6 +2023,7 @@ async def import_sales_csv(file: UploadFile = File(...)):
             gp = parse_csv_amount(row.get('GP', '0'))
             gp_pct_raw = row.get('GP%', '0').replace('%', '').strip()
             gp_pct = float(gp_pct_raw) if gp_pct_raw else 0
+            invoice_value = parse_csv_amount(row.get('Invoice Value', '') or row.get('invoice_value', '0'))
             s = Sale(
                 invoice_no=invoice_no,
                 sale_date=sale_date_dt,
@@ -1983,6 +2042,7 @@ async def import_sales_csv(file: UploadFile = File(...)):
                 pg_fiber_invoice_value=parse_csv_amount(row.get('P.G.Fiber Invoice Value', '') or row.get('P.G.Fiber Invoice Value ', '0')),
                 gp=gp,
                 gp_percent=gp_pct,
+                invoice_value=invoice_value,
                 total_amount=freight,
                 source_csv="From Indore",
             )

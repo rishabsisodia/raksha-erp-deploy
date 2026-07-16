@@ -15,7 +15,7 @@ function go(page, el) {
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
-    if (page === 'orders') { loadOrders(); try { loadProformaOrders(); } catch(e) {} }
+    if (page === 'orders') loadAllOrders();
     if (page === 'customers') loadCustomers();
     if (page === 'transporters') loadTransporters();
     if (page === 'sales') loadSales();
@@ -116,37 +116,92 @@ async function openPricing(id) {
 }
 
 async function loadOrders() {
-    var orders = await api('/api/orders');
+    await loadAllOrders();
+}
+
+async function loadAllOrders() {
+    var filter = $('f-orderfilter') ? $('f-orderfilter').value : '';
+    var rows = [];
+
+    if (filter !== 'PIPO') {
+        try {
+            var cogs = await api('/api/orders');
+            cogs.forEach(function(o) {
+                rows.push({
+                    type: 'COGS',
+                    ref: o.po_no || ('Order #' + o.sl_no),
+                    date: o.po_date || o.entry_date || '',
+                    customer: o.billing_site || o.shipping_site || '-',
+                    boxes: o.no_of_boxes || 0,
+                    value: o.value_excl_gst_freight || 0,
+                    invoice_no: o.invoice_no || '-',
+                    invoice_amt: o.invoice_amount || 0,
+                    status: '-',
+                    id: o.id,
+                    raw: o
+                });
+            });
+        } catch(e) {}
+    }
+
+    if (filter !== 'COGS') {
+        try {
+            var pipos = await api('/api/proforma-orders');
+            pipos.forEach(function(o) {
+                rows.push({
+                    type: o.order_type || 'PI',
+                    ref: o.pi_no,
+                    date: o.pi_date ? o.pi_date.substring(0, 10) : '',
+                    customer: o.customer_name || '-',
+                    boxes: o.no_of_boxes || 0,
+                    value: o.value_excl_gst || 0,
+                    invoice_no: '-',
+                    invoice_amt: o.total_amount || 0,
+                    status: o.payment_status || 'Pending',
+                    id: o.id,
+                    raw: o
+                });
+            });
+        } catch(e) {}
+    }
+
+    rows.sort(function(a, b) {
+        var da = a.date || '';
+        var db2 = b.date || '';
+        return da > db2 ? -1 : da < db2 ? 1 : 0;
+    });
+
     var h = '';
-    orders.forEach(function(o) {
+    rows.forEach(function(r) {
+        var typeBadge = r.type === 'COGS'
+            ? '<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">COGS</span>'
+            : '<span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + r.type + '</span>';
+        var statusBadge = '';
+        if (r.status && r.status !== '-') {
+            var sc = r.status === 'Paid' ? 'bg-green-100 text-green-700' : r.status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700';
+            statusBadge = '<span class="px-2 py-1 rounded text-xs ' + sc + '">' + r.status + '</span>';
+        }
+        var editFn = r.type === 'COGS' ? 'editOrder(' + r.id + ')' : 'editProformaOrder(' + r.id + ')';
+        var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
+        var viewFn = r.type === 'COGS' ? '' : '<button onclick="viewProformaOrder(' + r.id + ')" class="text-green-600 hover:text-green-800 mr-2" title="View"><i class="fas fa-eye"></i></button>';
+
         h += '<tr class="border-b hover:bg-gray-50">';
-        h += '<td class="px-2 py-2">' + (o.sl_no || '') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.po_no || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.po_date || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.billing_site || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.shipping_site || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.no_of_boxes || 0) + '</td>';
-        h += '<td class="px-2 py-2">' + fmt(o.value_excl_gst_freight) + '</td>';
-        h += '<td class="px-2 py-2">' + (o.invoice_no || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.invoice_date || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + fmt(o.invoice_amount_excl_gst) + '</td>';
-        h += '<td class="px-2 py-2">' + (o.weight_kgs || 0) + '</td>';
-        h += '<td class="px-2 py-2">' + (o.freight_rate_per_kg || 0) + '</td>';
-        h += '<td class="px-2 py-2">' + fmt(o.transport_charges) + '</td>';
-        h += '<td class="px-2 py-2 font-bold">' + fmt(o.invoice_amount) + '</td>';
-        h += '<td class="px-2 py-2">' + (o.eway_bill_no || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.lr_no || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.entry_date || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + fmt(o.credit_note_amount) + '</td>';
-        h += '<td class="px-2 py-2">' + (o.credit_note_no || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.transporter || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (o.transporter_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + typeBadge + '</td>';
+        h += '<td class="px-2 py-2 font-medium">' + (r.ref || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (r.date || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + r.customer + '</td>';
+        h += '<td class="px-2 py-2">' + r.boxes + '</td>';
+        h += '<td class="px-2 py-2">' + fmt(r.value) + '</td>';
+        h += '<td class="px-2 py-2">' + r.invoice_no + '</td>';
+        h += '<td class="px-2 py-2 font-bold">' + fmt(r.invoice_amt) + '</td>';
+        h += '<td class="px-2 py-2">' + statusBadge + '</td>';
         h += '<td class="px-2 py-2">';
-        h += '<button onclick="editOrder(' + o.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="deleteOrder(' + o.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<button onclick="' + editFn + '" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += viewFn;
+        h += '<button onclick="' + deleteFn + '" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
     });
-    $('t-orders').innerHTML = h || '<tr><td colspan="22" class="text-center py-4 text-gray-400">No orders</td></tr>';
+    $('t-all-orders').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No orders</td></tr>';
 }
 
 function editOrder(id) {
@@ -195,11 +250,11 @@ async function loadCustomers() {
     _customers.forEach(function(c) {
         h += '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-2 py-2 font-medium">' + (c.customer_id || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (c.contact_name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.gstin || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.state || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.district || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.city || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.contact_name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.contact_number || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.exec_name || '-') + '</td>';
         h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (c.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (c.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
@@ -313,6 +368,7 @@ async function loadSales() {
         h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
         h += '<td class="px-3 py-2">' + fmt(s.freight_amount) + '</td>';
+        h += '<td class="px-3 py-2 font-bold">' + fmt(s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
         h += '<td class="px-3 py-2">';
@@ -320,7 +376,7 @@ async function loadSales() {
         h += '<button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
     });
-    $('t-sales').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No sales</td></tr>';
+    $('t-sales').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No sales</td></tr>';
     } catch(e) { console.error('loadSales error:', e); toast('Error loading sales: ' + e.message, true); }
 }
 
@@ -344,6 +400,7 @@ async function editSale(id) {
     if ($('f-slprice')) $('f-slprice').value = s.unit_price || '';
     if ($('f-sldisc')) $('f-sldisc').value = s.discount_percent || 0;
     if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
+    if ($('f-slinvval')) $('f-slinvval').value = s.invoice_value || 0;
     if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
     if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
     calcSale();
@@ -527,7 +584,110 @@ async function loadReport() {
     h += '<div class="flex justify-between border-t pt-1 mt-1 text-xl"><span>PAT:</span><span class="font-bold ' + paC + '">' + fmt(d.pat) + '</span></div></div>';
 
     $('rpt-body').innerHTML = h;
+
+    renderReportCharts(d);
     } catch(e) { console.error('Report error:', e); $('rpt-body').innerHTML = '<p class="text-red-500">Error loading report</p>'; }
+}
+
+var _reportCharts = {};
+function destroyCharts() {
+    Object.keys(_reportCharts).forEach(function(k) { if (_reportCharts[k]) _reportCharts[k].destroy(); });
+    _reportCharts = {};
+}
+
+function renderReportCharts(d) {
+    destroyCharts();
+    var colors = {
+        indigo: '#4f46e5', green: '#16a34a', red: '#dc2626', orange: '#ea580c',
+        purple: '#9333ea', blue: '#2563eb', yellow: '#ca8a04', teal: '#0d9488'
+    };
+
+    // Revenue vs COGS Bar Chart
+    var ctx1 = document.getElementById('chart-revenue');
+    if (ctx1) {
+        _reportCharts.revenue = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: ['Revenue (Sales)', 'COGS (Orders)', 'Freight Cost', 'Credit Notes'],
+                datasets: [{
+                    label: 'Amount',
+                    data: [d.total_revenue || 0, d.total_cogs || 0, d.order_freight_cost || 0, d.order_credit_notes || 0],
+                    backgroundColor: [colors.green, colors.red, colors.orange, colors.yellow],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { title: { display: true, text: 'Revenue vs COGS', font: { size: 14, weight: 'bold' } }, legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '\u20B9' + v.toLocaleString('en-IN'); } } } }
+            }
+        });
+    }
+
+    // Expense Breakdown Doughnut
+    var ctx2 = document.getElementById('chart-expenses');
+    if (ctx2) {
+        var expLabels = Object.keys(d.expenses || {});
+        var expValues = expLabels.map(function(k) { return d.expenses[k]; });
+        var expColors = [colors.indigo, colors.green, colors.red, colors.orange, colors.purple, colors.blue, colors.yellow, colors.teal, '#64748b', '#f43f5e'];
+        if (expLabels.length === 0) { expLabels = ['No Expenses']; expValues = [1]; expColors = ['#e5e7eb']; }
+        _reportCharts.expenses = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: expLabels,
+                datasets: [{ data: expValues, backgroundColor: expColors.slice(0, expLabels.length), borderWidth: 2 }]
+            },
+            options: {
+                responsive: true,
+                plugins: { title: { display: true, text: 'Expense Breakdown', font: { size: 14, weight: 'bold' } } }
+            }
+        });
+    }
+
+    // Gross Profit Gauge (horizontal bar)
+    var ctx3 = document.getElementById('chart-gp');
+    if (ctx3) {
+        _reportCharts.gp = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: ['Gross Profit', 'Operating Expenses', 'EBITDA', 'Tax', 'PAT'],
+                datasets: [{
+                    label: 'Amount',
+                    data: [d.gross_profit || 0, d.total_opex || 0, d.ebitda || 0, d.tax || 0, d.pat || 0],
+                    backgroundColor: [d.gross_profit >= 0 ? colors.green : colors.red, colors.red, d.ebitda >= 0 ? colors.indigo : colors.red, colors.orange, d.pat >= 0 ? colors.teal : colors.red],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { title: { display: true, text: 'Profitability Waterfall', font: { size: 14, weight: 'bold' } }, legend: { display: false } },
+                scales: { x: { ticks: { callback: function(v) { return '\u20B9' + v.toLocaleString('en-IN'); } } } }
+            }
+        });
+    }
+
+    // Key Metrics Summary (bar)
+    var ctx4 = document.getElementById('chart-sales');
+    if (ctx4) {
+        _reportCharts.sales = new Chart(ctx4, {
+            type: 'bar',
+            data: {
+                labels: ['Total Sales', 'Total Orders', 'Units Sold', 'Boxes', 'GST Collected'],
+                datasets: [{
+                    label: 'Count / Amount',
+                    data: [d.total_sales || 0, d.total_orders || 0, d.units || 0, d.order_boxes || 0, d.gst || 0],
+                    backgroundColor: [colors.blue, colors.purple, colors.green, colors.orange, colors.yellow],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { title: { display: true, text: 'Key Metrics', font: { size: 14, weight: 'bold' } }, legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
 }
 
 // ---- FORM HANDLERS ----
@@ -752,6 +912,7 @@ $('f-sale').addEventListener('submit', async function(e) {
         unit_price: parseFloat($('f-slprice').value),
         discount_percent: parseFloat($('f-sldisc').value) || 0,
         freight_amount: parseFloat($('f-slfrt').value) || 0,
+        invoice_value: parseFloat($('f-slinvval').value) || 0,
         payment_status: $('f-slstatus').value,
         payment_method: $('f-slmethod').value
     };
@@ -894,26 +1055,7 @@ async function importExpensesCSV(input) {
 
 // ---- PROFORMA ORDERS (PI/PO) ----
 async function loadProformaOrders() {
-    var filter = $('f-pofilter') ? $('f-pofilter').value : '';
-    var url = '/api/proforma-orders' + (filter ? '?order_type=' + filter : '');
-    var orders = await api(url);
-    var h = '';
-    orders.forEach(function(o) {
-        h += '<tr class="border-b hover:bg-gray-50">';
-        h += '<td class="px-3 py-2 font-medium">' + o.pi_no + '</td>';
-        h += '<td class="px-3 py-2">' + (o.pi_date ? o.pi_date.substring(0, 10) : '-') + '</td>';
-        h += '<td class="px-3 py-2">' + o.customer_name + '</td>';
-        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs ' + (o.order_type === 'PI' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700') + '">' + o.order_type + '</span></td>';
-        h += '<td class="px-3 py-2">' + o.item_count + '</td>';
-        h += '<td class="px-3 py-2 font-bold">' + fmt(o.total_amount) + '</td>';
-        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs ' + (o.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : o.payment_status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700') + '">' + o.payment_status + '</span></td>';
-        h += '<td class="px-3 py-2">';
-        h += '<button onclick="editProformaOrder(' + o.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="viewProformaOrder(' + o.id + ')" class="text-green-600 hover:text-green-800 mr-2" title="View"><i class="fas fa-eye"></i></button>';
-        h += '<button onclick="deleteProformaOrder(' + o.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
-        h += '</td></tr>';
-    });
-    $('t-proforma-orders').innerHTML = h || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No PI/PO orders</td></tr>';
+    await loadAllOrders();
 }
 
 async function showProformaOrderModal() {
@@ -1014,7 +1156,7 @@ async function deleteProformaOrder(id) {
     if (!confirm('Delete this order?')) return;
     await api('/api/proforma-orders/' + id, {method: 'DELETE'});
     toast('Order deleted');
-    loadProformaOrders();
+    loadAllOrders();
 }
 
 function addProformaItem() {
@@ -1170,7 +1312,7 @@ $('f-proforma-order').addEventListener('submit', async function(e) {
         $('f-proforma-order').reset();
         _editingProformaId = null;
         _proformaItems = [];
-        loadProformaOrders();
+        loadAllOrders();
     } catch(e) {
         toast('Error: ' + e.message, true);
     }
