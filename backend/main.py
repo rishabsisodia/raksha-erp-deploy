@@ -338,25 +338,37 @@ def startup_event():
                 pass
         conn.commit()
         try:
-            conn.execute(text("UPDATE sales SET invoice_value = '0' WHERE invoice_value IS NULL OR invoice_value = '' OR invoice_value = 'None'"))
-            conn.execute(text("ALTER TABLE sales ALTER COLUMN invoice_value TYPE FLOAT USING invoice_value::float"))
+            conn.execute(text("UPDATE sales SET invoice_value = '0' WHERE invoice_value IS NULL OR invoice_value = '' OR invoice_value = 'None' OR invoice_value = '–'"))
             conn.commit()
         except Exception:
             pass
         try:
-            conn.execute(text("ALTER TABLE sales ALTER COLUMN invoice_value SET DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sales DROP COLUMN invoice_value"))
             conn.commit()
         except Exception:
             pass
-        new_customer_cols = ["contact_name", "contact_number", "contact_email",
+        try:
+            conn.execute(text("ALTER TABLE sales ADD COLUMN invoice_value FLOAT DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
+        new_customer_cols = ["customer_id", "contact_name", "contact_number", "contact_email",
                             "exec_code", "exec_name", "exec_number", "exec_email",
                             "billing_address", "shipping_address", "pincode"]
         for col in new_customer_cols:
             try:
-                conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
+                if col == "customer_id":
+                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
+                else:
+                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
             except Exception:
                 pass
         conn.commit()
+        try:
+            conn.execute(text("UPDATE customers SET customer_id = 'C' || id WHERE customer_id IS NULL OR customer_id = ''"))
+            conn.commit()
+        except Exception:
+            pass
     backfill_part_numbers()
     backfill_pieces_per_box()
     backfill_product_names()
