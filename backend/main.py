@@ -2424,6 +2424,332 @@ async def import_standard_packaging(file: UploadFile = File(...)):
         db.close()
 
 
+# ---- XLSX IMPORT (Orders & Sales) ----
+def read_xlsx_sheet(file_content, sheet_name=None):
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(file_content), data_only=True)
+    ws = wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames else wb.active
+    rows = []
+    for row in ws.iter_rows(values_only=True):
+        rows.append([str(c) if c is not None else "" for c in row])
+    return rows
+
+
+def rows_to_csv_string(rows):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    for row in rows:
+        writer.writerow(row)
+    return output.getvalue()
+
+
+@app.post("/api/import/orders-xlsx")
+async def import_orders_xlsx(file: UploadFile = File(...)):
+    content = await file.read()
+    try:
+        rows = read_xlsx_sheet(content)
+        if not rows:
+            raise HTTPException(400, "File is empty")
+        csv_text = rows_to_csv_string(rows)
+        text_content = csv_text
+        reader = csv.DictReader(io.StringIO(text_content))
+        db = SessionLocal()
+        imported = 0
+        skipped = 0
+        try:
+            for row in reader:
+                sl_raw = row.get('Sl No.', '').strip()
+                if not sl_raw:
+                    skipped += 1
+                    continue
+                try:
+                    sl_no = int(float(sl_raw))
+                except ValueError:
+                    skipped += 1
+                    continue
+                existing = db.query(Order).filter(Order.sl_no == sl_no).first()
+                data = {
+                    "sl_no": sl_no,
+                    "po_no": "",
+                    "po_date": parse_csv_date(row.get('PO Date', '')),
+                    "billing_site": row.get('Billing Site', '').strip(),
+                    "shipping_site": row.get('Shipping Site', '').strip(),
+                    "no_of_boxes": int(parse_csv_amount(row.get('No. Of Boxes', '0'))),
+                    "value_excl_gst_freight": parse_csv_amount(row.get('Value (excl. GST & Freight)', '0')),
+                    "invoice_no": row.get('Invoice No.', '').strip() if row.get('Invoice No.', '').strip() not in ('-', '–', '') else '',
+                    "invoice_date": parse_csv_date(row.get('Invoice Date', '')),
+                    "invoice_amount_excl_gst": parse_csv_amount(row.get('Invoice Amount (ex. GST)', '0')),
+                    "weight_kgs": parse_csv_amount(row.get('Weight (Kg)', '0')),
+                    "freight_rate_per_kg": parse_csv_amount(row.get('Freight (Rate / Kg)', '0')),
+                    "transport_charges": parse_csv_amount(row.get('Transport Charges', '0')),
+                    "invoice_amount": parse_csv_amount(row.get('Invoice Amount', '0')),
+                    "eway_bill_no": row.get('E-way Bill No', '').strip() if row.get('E-way Bill No', '').strip() not in ('-', '–', '') else '',
+                    "lr_no": row.get('LR Copy', '').strip() if row.get('LR Copy', '').strip() not in ('-', '–', '') else '',
+                    "entry_date": parse_csv_date(row.get('ERP Entry Date', '')),
+                    "credit_note_amount": parse_csv_amount(row.get('Credit Note Amount (If any)', '0')),
+                    "credit_note_no": row.get('Credit Note No.', '').strip() if row.get('Credit Note No.', '').strip() not in ('-', '–', '') else '',
+                    "transporter": row.get('Transporter', '').strip(),
+                    "transporter_no": "",
+                }
+                if existing:
+                    for k, v in data.items():
+                        if k != "sl_no":
+                            setattr(existing, k, v)
+                else:
+                    o = Order(**data)
+                    db.add(o)
+                imported += 1
+            db.commit()
+            return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} orders from XLSX"}
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(500, f"Import failed: {str(e)}")
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Failed to read XLSX: {str(e)}")
+
+
+@app.post("/api/import/sales-xlsx")
+async def import_sales_xlsx(file: UploadFile = File(...)):
+    content = await file.read()
+    try:
+        rows = read_xlsx_sheet(content)
+        if not rows:
+            raise HTTPException(400, "File is empty")
+        csv_text = rows_to_csv_string(rows)
+        reader = csv.DictReader(io.StringIO(csv_text))
+        db = SessionLocal()
+        imported = 0
+        skipped = 0
+        try:
+            for row in reader:
+                sl_raw = row.get('Sl No.', '').strip()
+                if not sl_raw:
+                    skipped += 1
+                    continue
+                try:
+                    int(float(sl_raw))
+                except ValueError:
+                    skipped += 1
+                    continue
+                invoice_no = row.get('Raksha Invoice NO', '').strip()
+                if invoice_no in ('-', '–', ''):
+                    invoice_no = None
+                sale_date = parse_csv_date(row.get('Date ', '') or row.get('Date', ''))
+                sale_date_dt = None
+                if sale_date:
+                    try:
+                        sale_date_dt = datetime.strptime(sale_date, '%Y-%m-%d')
+                    except Exception:
+                        pass
+                freight = parse_csv_amount(row.get('Freight', '0'))
+                gp = parse_csv_amount(row.get('GP', '0'))
+                gp_pct_raw = row.get('GP%', '0').replace('%', '').strip()
+                try:
+                    gp_pct = float(gp_pct_raw) if gp_pct_raw and gp_pct_raw not in ('-', '–', '', 'None') else 0
+                except ValueError:
+                    gp_pct = 0
+                invoice_value = parse_csv_amount(row.get('Invoice Value', '') or row.get('invoice_value', '0'))
+                s = Sale(
+                    invoice_no=invoice_no,
+                    sale_date=sale_date_dt,
+                    payment_terms=row.get('Payment Terms', '').strip(),
+                    party_name=(row.get('Party Name ', '') or row.get('Party Name', '') or '').strip(),
+                    location=row.get('Location', '').strip(),
+                    pincode=row.get('Pincode', '').strip(),
+                    state=row.get('State', '').strip(),
+                    transporter_name=row.get('Transporter Name', '').strip(),
+                    lr_no=row.get('LR No', '').strip(),
+                    freight_amount=freight,
+                    weight_kgs=parse_csv_amount(row.get('Weight', '0')),
+                    weight_pg_fiber=parse_csv_amount(row.get('Weight on PG Fiber Bill', '0')),
+                    sales_person=row.get('Sales Ex Person / Person In-Charge', '').strip(),
+                    pg_fiber_invoice_no=(row.get('P.G.Fiber Invoice No', '') or row.get('P.G.Fiber Invoice No ', '') or '').strip(),
+                    pg_fiber_invoice_value=parse_csv_amount(row.get('P.G.Fiber Invoice Value', '') or row.get('P.G.Fiber Invoice Value ', '0')),
+                    gp=gp,
+                    gp_percent=gp_pct,
+                    invoice_value=invoice_value,
+                    total_amount=freight,
+                    source_csv="From Indore",
+                )
+                db.add(s)
+                imported += 1
+            db.commit()
+            return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} sales from XLSX"}
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(500, f"Import failed: {str(e)}")
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Failed to read XLSX: {str(e)}")
+
+
+# ---- EXPORT (CSV, XLSX, PDF) ----
+@app.get("/api/export/orders")
+def export_orders(format: str = "csv"):
+    db = SessionLocal()
+    try:
+        rows = db.query(Order).order_by(Order.sl_no).all()
+        headers = ["Sl No.", "PO Date", "Billing Site", "Shipping Site", "No. Of Boxes",
+                    "Value (excl. GST & Freight)", "Invoice No.", "Invoice Date",
+                    "Invoice Amount (ex. GST)", "Weight (Kg)", "Freight (Rate / Kg)",
+                    "Transport Charges", "Invoice Amount", "E-way Bill No", "LR No.",
+                    "Entry Date", "Credit Note Amount", "Credit Note No.", "Transporter"]
+        data = []
+        for o in rows:
+            data.append([o.sl_no, o.po_date or "", o.billing_site or "", o.shipping_site or "",
+                         o.no_of_boxes or 0, o.value_excl_gst_freight or 0, o.invoice_no or "",
+                         o.invoice_date or "", o.invoice_amount_excl_gst or 0, o.weight_kgs or 0,
+                         o.freight_rate_per_kg or 0, o.transport_charges or 0, o.invoice_amount or 0,
+                         o.eway_bill_no or "", o.lr_no or "", o.entry_date or "",
+                         o.credit_note_amount or 0, o.credit_note_no or "", o.transporter or ""])
+
+        if format == "xlsx":
+            return export_xlsx("Orders", headers, data)
+        elif format == "pdf":
+            return export_pdf("Orders", headers, data)
+        else:
+            return export_csv(headers, data)
+    finally:
+        db.close()
+
+
+@app.get("/api/export/sales")
+def export_sales(format: str = "csv"):
+    db = SessionLocal()
+    try:
+        rows = db.query(Sale).order_by(Sale.id.desc()).all()
+        headers = ["Invoice No.", "Date", "Party Name", "Location", "State", "Transporter",
+                    "Freight", "Weight", "Weight PG Fiber", "Invoice Value", "GP", "GP%",
+                    "Payment Terms", "Sales Person", "PG Fiber Invoice No", "PG Fiber Invoice Value"]
+        data = []
+        for s in rows:
+            dt = ""
+            if s.sale_date:
+                try:
+                    dt = s.sale_date.strftime("%Y-%m-%d")
+                except Exception:
+                    dt = str(s.sale_date)[:10]
+            data.append([s.invoice_no or "", dt, s.party_name or "", s.location or "",
+                         s.state or "", s.transporter_name or "", s.freight_amount or 0,
+                         s.weight_kgs or 0, s.weight_pg_fiber or 0, s.invoice_value or 0,
+                         s.gp or 0, s.gp_percent or 0, s.payment_terms or "",
+                         s.sales_person or "", s.pg_fiber_invoice_no or "",
+                         s.pg_fiber_invoice_value or 0])
+
+        if format == "xlsx":
+            return export_xlsx("Sales", headers, data)
+        elif format == "pdf":
+            return export_pdf("Sales", headers, data)
+        else:
+            return export_csv(headers, data)
+    finally:
+        db.close()
+
+
+@app.get("/api/export/proforma-orders")
+def export_proforma_orders(format: str = "csv", order_type: str = None):
+    db = SessionLocal()
+    try:
+        query = db.query(ProformaOrder)
+        if order_type:
+            query = query.filter(ProformaOrder.order_type == order_type)
+        rows = query.order_by(ProformaOrder.created_at.desc()).all()
+        headers = ["PI No", "Date", "Customer", "Type", "Billing Site", "Shipping Site",
+                    "Boxes", "Total Qty", "Value (excl GST)", "GST", "Freight",
+                    "Total Amount", "Payment Status", "Delivery Days"]
+        data = []
+        for o in rows:
+            cust = db.query(Customer).filter(Customer.id == o.customer_id).first()
+            data.append([o.pi_no or "", o.pi_date.strftime("%Y-%m-%d") if o.pi_date else "",
+                         cust.contact_name if cust else "", o.order_type or "",
+                         o.billing_site or "", o.shipping_site or "",
+                         o.no_of_boxes or 0, o.total_qty or 0, o.value_excl_gst or 0,
+                         o.gst_amount or 0, o.freight_amount or 0, o.total_amount or 0,
+                         o.payment_status or "", o.delivery_days or 0])
+
+        if format == "xlsx":
+            return export_xlsx("PI-PO Orders", headers, data)
+        elif format == "pdf":
+            return export_pdf("PI-PO Orders", headers, data)
+        else:
+            return export_csv(headers, data)
+    finally:
+        db.close()
+
+
+def export_csv(headers, data):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for row in data:
+        writer.writerow(row)
+    csv_bytes = output.getvalue().encode('utf-8-sig')
+    return Response(content=csv_bytes, media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=export.csv"})
+
+
+def export_xlsx(sheet_name, headers, data):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = openpyxl.styles.Font(bold=True)
+    for row in data:
+        ws.append(row)
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except Exception:
+                pass
+        ws.column_dimensions[col_letter].width = min(max_length + 2, 40)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename={sheet_name}.xlsx"})
+
+
+def export_pdf(title, headers, data):
+    from fpdf import FPDF
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, f"Raksha ERP - {title}", ln=True, align="C")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 6, f"Generated: {datetime.now().strftime('%d-%b-%Y %H:%M')}", ln=True, align="C")
+    pdf.ln(4)
+    num_cols = len(headers)
+    col_width = max(277 / num_cols, 20)
+    pdf.set_font("Helvetica", "B", 7)
+    for h in headers:
+        short_h = str(h)[:20]
+        pdf.cell(col_width, 7, short_h, border=1, align="C")
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 6)
+    for row in data:
+        for val in row:
+            s = str(val)[:22]
+            pdf.cell(col_width, 5, s, border=1)
+        pdf.ln()
+    pdf_bytes = pdf.output()
+    return Response(content=bytes(pdf_bytes), media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={title}.pdf"})
+
+
 # ---- FRONTEND ----
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.isdir(frontend_path):

@@ -79,7 +79,21 @@
                             <option value="COGS">COGS Orders</option>
                             <option value="PIPO">PI/PO Orders</option>
                         </select>
-                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importOrdersCSV(this)"></label>
+                        <div class="relative group">
+                            <button class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"><i class="fas fa-file-import mr-1"></i>Import</button>
+                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 whitespace-nowrap">
+                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"><i class="fas fa-file-csv mr-2 text-green-600"></i>CSV<input type="file" accept=".csv" class="hidden" onchange="importOrdersCSV(this)"></label>
+                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"><i class="fas fa-file-excel mr-2 text-green-600"></i>XLSX<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importOrdersXLSX(this)"></label>
+                            </div>
+                        </div>
+                        <div class="relative group">
+                            <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"><i class="fas fa-file-export mr-1"></i>Export</button>
+                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 whitespace-nowrap">
+                                <a href="/api/export/orders?format=csv" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-csv mr-2 text-green-600"></i>CSV</a>
+                                <a href="/api/export/orders?format=xlsx" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-excel mr-2 text-green-600"></i>XLSX</a>
+                                <a href="/api/export/orders?format=pdf" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-pdf mr-2 text-red-600"></i>PDF</a>
+                            </div>
+                        </div>
                         <button onclick="showModal('m-order')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Order</button>
                         <button onclick="showProformaOrderModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><i class="fas fa-plus mr-1"></i>New PI/PO</button>
                     </div>
@@ -148,8 +162,22 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Sales</h3>
-                    <div class="flex gap-2">
-                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importSalesCSV(this)"></label>
+                    <div class="flex gap-2 items-center">
+                        <div class="relative group">
+                            <button class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"><i class="fas fa-file-import mr-1"></i>Import</button>
+                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 whitespace-nowrap">
+                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"><i class="fas fa-file-csv mr-2 text-green-600"></i>CSV<input type="file" accept=".csv" class="hidden" onchange="importSalesCSV(this)"></label>
+                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"><i class="fas fa-file-excel mr-2 text-green-600"></i>XLSX<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importSalesXLSX(this)"></label>
+                            </div>
+                        </div>
+                        <div class="relative group">
+                            <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"><i class="fas fa-file-export mr-1"></i>Export</button>
+                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 whitespace-nowrap">
+                                <a href="/api/export/sales?format=csv" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-csv mr-2 text-green-600"></i>CSV</a>
+                                <a href="/api/export/sales?format=xlsx" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-excel mr-2 text-green-600"></i>XLSX</a>
+                                <a href="/api/export/sales?format=pdf" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-pdf mr-2 text-red-600"></i>PDF</a>
+                            </div>
+                        </div>
                         <button onclick="showModal('m-sale')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>New Sale</button>
                     </div>
                 </div>

@@ -968,7 +968,23 @@ async function importOrdersCSV(input) {
         var d = await r.json();
         if (!r.ok) throw new Error(d.detail || 'Import failed');
         toast(d.message);
-        loadOrders();
+        loadAllOrders();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importOrdersXLSX(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing orders from XLSX...');
+    try {
+        var r = await fetch('/api/import/orders-xlsx', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadAllOrders();
     } catch(e) { toast('Error: ' + e.message, true); }
     input.value = '';
 }
@@ -981,6 +997,22 @@ async function importSalesCSV(input) {
     toast('Importing sales...');
     try {
         var r = await fetch('/api/import/sales', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadSales();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importSalesXLSX(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing sales from XLSX...');
+    try {
+        var r = await fetch('/api/import/sales-xlsx', {method: 'POST', body: fd});
         var d = await r.json();
         if (!r.ok) throw new Error(d.detail || 'Import failed');
         toast(d.message);
