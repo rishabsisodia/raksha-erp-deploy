@@ -338,6 +338,7 @@ def startup_event():
                 pass
         conn.commit()
         try:
+            conn.execute(text("UPDATE sales SET invoice_value = '0' WHERE invoice_value IS NULL OR invoice_value = '' OR invoice_value = 'None'"))
             conn.execute(text("ALTER TABLE sales ALTER COLUMN invoice_value TYPE FLOAT USING invoice_value::float"))
             conn.commit()
         except Exception:
@@ -1390,6 +1391,9 @@ def list_customers():
                  "exec_code": c.exec_code, "exec_name": c.exec_name, "exec_number": c.exec_number, "exec_email": c.exec_email,
                  "blacklisted": c.blacklisted}
                 for c in rows]
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(500, detail=str(e))
     finally:
         db.close()
 
@@ -1577,9 +1581,13 @@ def list_sales():
                     "payment_terms": s.payment_terms or "",
                     "source_csv": s.source_csv or "",
                 })
-            except Exception:
+            except Exception as ex:
+                import traceback; traceback.print_exc()
                 continue
         return out
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(500, detail=str(e))
     finally:
         db.close()
 
