@@ -294,95 +294,53 @@ def db_info():
 def startup_event():
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
-        try:
-            conn.execute(text("CREATE TABLE IF NOT EXISTS proforma_orders (id SERIAL PRIMARY KEY, pi_no VARCHAR UNIQUE, pi_date TIMESTAMP, customer_id INTEGER REFERENCES customers(id), billing_site VARCHAR DEFAULT '', shipping_site VARCHAR DEFAULT '', no_of_boxes INTEGER DEFAULT 0, total_qty INTEGER DEFAULT 0, value_excl_gst FLOAT DEFAULT 0, gst_amount FLOAT DEFAULT 0, total_amount FLOAT DEFAULT 0, freight_amount FLOAT DEFAULT 0, payment_status VARCHAR DEFAULT 'Pending', payment_method VARCHAR DEFAULT 'Cash', transport_mode VARCHAR DEFAULT '', delivery_days INTEGER DEFAULT 30, notes VARCHAR DEFAULT '', terms TEXT DEFAULT '', order_type VARCHAR DEFAULT 'PI', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("CREATE TABLE IF NOT EXISTS proforma_order_items (id SERIAL PRIMARY KEY, proforma_order_id INTEGER REFERENCES proforma_orders(id), sl_no INTEGER, product_id INTEGER REFERENCES products(id), part_no VARCHAR DEFAULT '', description VARCHAR DEFAULT '', size VARCHAR DEFAULT '', category VARCHAR DEFAULT '', qty_boxes INTEGER DEFAULT 1, std_packaging INTEGER DEFAULT 1, pieces_per_box INTEGER DEFAULT 1, final_qty INTEGER DEFAULT 0, mrp FLOAT DEFAULT 0, d1 FLOAT DEFAULT 0, d2 FLOAT DEFAULT 0, d3 FLOAT DEFAULT 0, d4 FLOAT DEFAULT 0, d5 FLOAT DEFAULT 0, cd FLOAT DEFAULT 0, discount_percent FLOAT DEFAULT 0, net_rate FLOAT DEFAULT 0, lock_hinge INTEGER DEFAULT 0, basic_amount FLOAT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS pieces_per_box INTEGER DEFAULT 1"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS std_packaging INTEGER DEFAULT 1"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_invoice_no_key"))
-            conn.commit()
-        except Exception:
-            pass
+        def safe_ddl(sql):
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        safe_ddl("CREATE TABLE IF NOT EXISTS proforma_orders (id SERIAL PRIMARY KEY, pi_no VARCHAR UNIQUE, pi_date TIMESTAMP, customer_id INTEGER REFERENCES customers(id), billing_site VARCHAR DEFAULT '', shipping_site VARCHAR DEFAULT '', no_of_boxes INTEGER DEFAULT 0, total_qty INTEGER DEFAULT 0, value_excl_gst FLOAT DEFAULT 0, gst_amount FLOAT DEFAULT 0, total_amount FLOAT DEFAULT 0, freight_amount FLOAT DEFAULT 0, payment_status VARCHAR DEFAULT 'Pending', payment_method VARCHAR DEFAULT 'Cash', transport_mode VARCHAR DEFAULT '', delivery_days INTEGER DEFAULT 30, notes VARCHAR DEFAULT '', terms TEXT DEFAULT '', order_type VARCHAR DEFAULT 'PI', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        safe_ddl("CREATE TABLE IF NOT EXISTS proforma_order_items (id SERIAL PRIMARY KEY, proforma_order_id INTEGER REFERENCES proforma_orders(id), sl_no INTEGER, product_id INTEGER REFERENCES products(id), part_no VARCHAR DEFAULT '', description VARCHAR DEFAULT '', size VARCHAR DEFAULT '', category VARCHAR DEFAULT '', qty_boxes INTEGER DEFAULT 1, std_packaging INTEGER DEFAULT 1, pieces_per_box INTEGER DEFAULT 1, final_qty INTEGER DEFAULT 0, mrp FLOAT DEFAULT 0, d1 FLOAT DEFAULT 0, d2 FLOAT DEFAULT 0, d3 FLOAT DEFAULT 0, d4 FLOAT DEFAULT 0, d5 FLOAT DEFAULT 0, cd FLOAT DEFAULT 0, discount_percent FLOAT DEFAULT 0, net_rate FLOAT DEFAULT 0, lock_hinge INTEGER DEFAULT 0, basic_amount FLOAT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS pieces_per_box INTEGER DEFAULT 1")
+        safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS std_packaging INTEGER DEFAULT 1")
+        safe_ddl("ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_invoice_no_key")
         new_sale_cols = [
             "party_name", "payment_terms", "location", "pincode", "state",
             "transporter_name", "lr_no", "weight_kgs", "weight_pg_fiber",
             "sales_person", "pg_fiber_invoice_no", "pg_fiber_invoice_value",
-            "gp", "gp_percent", "invoice_value", "source_csv"
+            "gp", "gp_percent", "source_csv"
         ]
         for col in new_sale_cols:
-            try:
-                col_type = "FLOAT" if col in ("weight_kgs","weight_pg_fiber","pg_fiber_invoice_value","gp","gp_percent","invoice_value") else "VARCHAR DEFAULT ''"
-                conn.execute(text(f"ALTER TABLE sales ADD COLUMN IF NOT EXISTS {col} {col_type}"))
-            except Exception:
-                pass
-        conn.commit()
-        try:
-            conn.execute(text("UPDATE sales SET invoice_value = '0' WHERE invoice_value IS NULL OR invoice_value = '' OR invoice_value = 'None' OR invoice_value = '–'"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE sales DROP COLUMN invoice_value"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE sales ADD COLUMN invoice_value FLOAT DEFAULT 0"))
-            conn.commit()
-        except Exception:
-            pass
-        new_customer_cols = ["gstin", "billing_address", "shipping_address",
-                            "state", "district", "city", "pincode",
-                            "contact_name", "contact_number", "contact_email",
-                            "exec_code", "exec_name", "exec_number", "exec_email",
-                            "blacklisted", "created_at"]
-        for col in new_customer_cols:
-            try:
-                if col == "blacklisted":
-                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} INTEGER DEFAULT 0"))
-                elif col == "created_at":
-                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                else:
-                    conn.execute(text(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col} VARCHAR DEFAULT ''"))
-            except Exception:
-                pass
-        conn.commit()
-        try:
-            conn.execute(text("ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_id VARCHAR DEFAULT ''"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("UPDATE customers SET customer_id = 'C' || id WHERE customer_id IS NULL OR customer_id = ''"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE customers ADD CONSTRAINT IF NOT EXISTS customers_customer_id_unique UNIQUE (customer_id)"))
-            conn.commit()
-        except Exception:
-            pass
+            col_type = "FLOAT" if col in ("weight_kgs","weight_pg_fiber","pg_fiber_invoice_value","gp","gp_percent") else "VARCHAR DEFAULT ''"
+            safe_ddl(f"ALTER TABLE sales ADD COLUMN IF NOT EXISTS {col} {col_type}")
+        safe_ddl("UPDATE sales SET invoice_value = '0' WHERE invoice_value IS NULL OR invoice_value = '' OR invoice_value = 'None' OR invoice_value = '\\u2013'")
+        safe_ddl("ALTER TABLE sales DROP COLUMN invoice_value")
+        safe_ddl("ALTER TABLE sales ADD COLUMN invoice_value FLOAT DEFAULT 0")
+        customer_cols = [
+            ("customer_id", "VARCHAR DEFAULT ''"),
+            ("gstin", "VARCHAR DEFAULT ''"),
+            ("billing_address", "VARCHAR DEFAULT ''"),
+            ("shipping_address", "VARCHAR DEFAULT ''"),
+            ("state", "VARCHAR DEFAULT ''"),
+            ("district", "VARCHAR DEFAULT ''"),
+            ("city", "VARCHAR DEFAULT ''"),
+            ("pincode", "VARCHAR DEFAULT ''"),
+            ("contact_name", "VARCHAR DEFAULT ''"),
+            ("contact_number", "VARCHAR DEFAULT ''"),
+            ("contact_email", "VARCHAR DEFAULT ''"),
+            ("exec_code", "VARCHAR DEFAULT ''"),
+            ("exec_name", "VARCHAR DEFAULT ''"),
+            ("exec_number", "VARCHAR DEFAULT ''"),
+            ("exec_email", "VARCHAR DEFAULT ''"),
+            ("blacklisted", "INTEGER DEFAULT 0"),
+            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ]
+        for col_name, col_type in customer_cols:
+            safe_ddl(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+        safe_ddl("UPDATE customers SET customer_id = 'C' || id WHERE customer_id IS NULL OR customer_id = ''")
+        safe_ddl("ALTER TABLE customers ADD CONSTRAINT customers_customer_id_unique UNIQUE (customer_id)")
     backfill_part_numbers()
     backfill_pieces_per_box()
     backfill_product_names()
