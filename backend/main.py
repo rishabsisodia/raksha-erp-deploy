@@ -1375,9 +1375,6 @@ def list_customers():
                  "exec_code": c.exec_code, "exec_name": c.exec_name, "exec_number": c.exec_number, "exec_email": c.exec_email,
                  "blacklisted": c.blacklisted}
                 for c in rows]
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(500, detail=str(e))
     finally:
         db.close()
 
@@ -1565,13 +1562,9 @@ def list_sales():
                     "payment_terms": s.payment_terms or "",
                     "source_csv": s.source_csv or "",
                 })
-            except Exception as ex:
-                import traceback; traceback.print_exc()
+            except Exception:
                 continue
         return out
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(500, detail=str(e))
     finally:
         db.close()
 
