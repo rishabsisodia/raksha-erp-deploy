@@ -1912,7 +1912,7 @@ def update_settings(body: dict):
 
 # ---- CSV IMPORT ----
 def parse_csv_amount(val):
-    if not val or val.strip() in ('-', '–', ''):
+    if not val or str(val).strip() in ('-', '–', '', 'None', 'none'):
         return 0
     return float(str(val).replace('₹', '').replace(',', '').replace(' ', '').strip() or 0)
 
@@ -2022,7 +2022,10 @@ async def import_sales_csv(file: UploadFile = File(...)):
             freight = parse_csv_amount(row.get('Freight', '0'))
             gp = parse_csv_amount(row.get('GP', '0'))
             gp_pct_raw = row.get('GP%', '0').replace('%', '').strip()
-            gp_pct = float(gp_pct_raw) if gp_pct_raw else 0
+            try:
+                gp_pct = float(gp_pct_raw) if gp_pct_raw and gp_pct_raw not in ('-', '–', '', 'None') else 0
+            except ValueError:
+                gp_pct = 0
             invoice_value = parse_csv_amount(row.get('Invoice Value', '') or row.get('invoice_value', '0'))
             s = Sale(
                 invoice_no=invoice_no,
