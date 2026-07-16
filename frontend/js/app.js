@@ -6,6 +6,12 @@ var _editingProformaId = null;
 
 function $(id) { return document.getElementById(id); }
 
+document.addEventListener('input', function(e) {
+    if (e.target.type === 'number' && e.target.min === '0' && parseFloat(e.target.value) < 0) {
+        e.target.value = 0;
+    }
+});
+
 function go(page, el) {
     document.querySelectorAll('[id^="p-"]').forEach(function(p) { p.classList.add('hidden'); });
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
@@ -127,11 +133,12 @@ async function loadAllOrders() {
         try {
             var cogs = await api('/api/orders');
             cogs.forEach(function(o) {
+                var cust = o.customer_name || o.billing_site || o.shipping_site || '-';
                 rows.push({
                     type: 'COGS',
                     ref: o.po_no || ('Order #' + o.sl_no),
                     date: o.po_date || o.entry_date || '',
-                    customer: o.billing_site || o.shipping_site || '-',
+                    customer: cust,
                     boxes: o.no_of_boxes || 0,
                     value: o.value_excl_gst_freight || 0,
                     invoice_no: o.invoice_no || '-',
@@ -214,6 +221,7 @@ function editOrder(id) {
         $('f-oslno').value = o.sl_no || '';
         $('f-opo').value = o.po_no || '';
         $('f-opodate').value = o.po_date || '';
+        $('f-ocustname').value = o.customer_name || '';
         $('f-obilling').value = o.billing_site || '';
         $('f-oshipping').value = o.shipping_site || '';
         $('f-oboxes').value = o.no_of_boxes || '';
@@ -739,6 +747,7 @@ $('f-order').addEventListener('submit', async function(e) {
         sl_no: parseInt($('f-oslno').value) || 0,
         po_no: $('f-opo').value,
         po_date: $('f-opodate').value,
+        customer_name: $('f-ocustname').value,
         billing_site: $('f-obilling').value,
         shipping_site: $('f-oshipping').value,
         no_of_boxes: parseInt($('f-oboxes').value) || 0,
@@ -1220,20 +1229,20 @@ function renderProformaItems() {
         h += '<td style="padding:4px;width:70px;background:#f9fafb;font-size:12px;">' + (item.category || '') + '</td>';
         h += '<td style="padding:4px;width:60px;background:#f9fafb;font-size:12px;">' + (item.size || '') + '</td>';
         h += '<td style="padding:4px;width:80px;background:#f9fafb;font-size:12px;">' + (item.part_no || '') + '</td>';
-        h += '<td style="padding:4px;width:50px;"><input type="number" value="' + (item.qty_boxes || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'qty_boxes\', parseInt(this.value)||0); calcProformaItemQty(' + idx + '); renderProformaItems(); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:50px;"><input type="number" min="0" value="' + (item.qty_boxes || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'qty_boxes\', Math.max(0,parseInt(this.value)||0)); calcProformaItemQty(' + idx + '); renderProformaItems(); calcProformaTotals()"></td>';
         h += '<td style="padding:4px;width:55px;background:#f9fafb;text-align:center;font-size:12px;">Boxes</td>';
         h += '<td style="padding:4px;width:65px;background:#f9fafb;text-align:center;font-size:12px;font-weight:bold;">' + (item.std_packaging || '') + '</td>';
         h += '<td style="padding:4px;width:50px;background:#f9fafb;text-align:center;font-size:12px;font-weight:bold;">' + (item.final_qty || 0) + '</td>';
         h += '<td style="padding:4px;width:55px;background:#f9fafb;text-align:center;font-size:12px;">Pieces</td>';
         h += '<td style="padding:4px;width:75px;background:#f9fafb;text-align:right;font-size:12px;">' + fmt(item.mrp) + '</td>';
-        h += '<td style="padding:4px;width:40px;"><input type="number" step="0.01" value="' + (item.d1 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d1\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td style="padding:4px;width:40px;"><input type="number" step="0.01" value="' + (item.d2 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d2\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td style="padding:4px;width:40px;"><input type="number" step="0.01" value="' + (item.d3 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d3\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td style="padding:4px;width:40px;"><input type="number" step="0.01" value="' + (item.d4 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d4\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td style="padding:4px;width:40px;"><input type="number" step="0.01" value="' + (item.d5 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d5\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
-        h += '<td style="padding:4px;width:40px;"><input type="number" step="0.01" value="' + (item.cd || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'cd\', parseFloat(this.value)||0); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:40px;"><input type="number" min="0" max="100" step="0.01" value="' + (item.d1 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d1\', Math.max(0,Math.min(100,parseFloat(this.value)||0))); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:40px;"><input type="number" min="0" max="100" step="0.01" value="' + (item.d2 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d2\', Math.max(0,Math.min(100,parseFloat(this.value)||0))); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:40px;"><input type="number" min="0" max="100" step="0.01" value="' + (item.d3 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d3\', Math.max(0,Math.min(100,parseFloat(this.value)||0))); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:40px;"><input type="number" min="0" max="100" step="0.01" value="' + (item.d4 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d4\', Math.max(0,Math.min(100,parseFloat(this.value)||0))); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:40px;"><input type="number" min="0" max="100" step="0.01" value="' + (item.d5 || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'d5\', Math.max(0,Math.min(100,parseFloat(this.value)||0))); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:40px;"><input type="number" min="0" max="100" step="0.01" value="' + (item.cd || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'cd\', Math.max(0,Math.min(100,parseFloat(this.value)||0))); calcProformaItemNetRate(' + idx + '); calcProformaTotals()"></td>';
         h += '<td style="padding:4px;width:80px;background:#f9fafb;font-weight:bold;text-align:right;font-size:12px;">' + fmt(item.net_rate) + '</td>';
-        h += '<td style="padding:4px;width:55px;"><input type="number" value="' + (item.lock_hinge || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'lock_hinge\', parseInt(this.value)||0); calcProformaItemAmount(' + idx + '); calcProformaTotals()"></td>';
+        h += '<td style="padding:4px;width:55px;"><input type="number" min="0" value="' + (item.lock_hinge || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'lock_hinge\', Math.max(0,parseInt(this.value)||0)); calcProformaItemAmount(' + idx + '); calcProformaTotals()"></td>';
         h += '<td style="padding:4px;width:90px;background:#f9fafb;font-weight:bold;text-align:right;color:#16a34a;font-size:12px;">' + fmt(item.basic_amount) + '</td>';
         h += '<td style="padding:4px;width:35px;text-align:center;"><button type="button" onclick="removeProformaItem(' + idx + ')" style="color:#ef4444;border:none;background:none;cursor:pointer;font-size:14px;"><i class="fas fa-times"></i></button></td>';
         h += '</tr>';
@@ -1289,9 +1298,7 @@ function calcProformaItemNetRate(idx) {
 
 function calcProformaItemAmount(idx) {
     var item = _proformaItems[idx];
-    var baseAmount = item.final_qty * item.net_rate;
-    var lockHingeAmount = item.lock_hinge * 100;
-    item.basic_amount = baseAmount + lockHingeAmount;
+    item.basic_amount = item.final_qty * item.net_rate;
 }
 
 function calcProformaTotals() {
@@ -1477,9 +1484,9 @@ async function loadSettings() {
         var s = await api('/api/settings');
         var h = '<div class="space-y-4">';
         h += '<div><label class="block text-sm font-medium mb-1">Company Name</label><input type="text" id="s-company" value="' + (s.company_name || 'Raksha') + '" class="w-full border rounded px-3 py-2"></div>';
-        h += '<div><label class="block text-sm font-medium mb-1">Default GST Rate %</label><input type="number" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" class="w-full border rounded px-3 py-2"></div>';
+        h += '<div><label class="block text-sm font-medium mb-1">Default GST Rate %</label><input type="number" min="0" max="100" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" class="w-full border rounded px-3 py-2"></div>';
         h += '<div><label class="block text-sm font-medium mb-1">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + (s.invoice_prefix || 'RFRP-') + '" class="w-full border rounded px-3 py-2"></div>';
-        h += '<div><label class="block text-sm font-medium mb-1">Tax Rate for P&L %</label><input type="number" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" class="w-full border rounded px-3 py-2"></div>';
+        h += '<div><label class="block text-sm font-medium mb-1">Tax Rate for P&L %</label><input type="number" min="0" max="100" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" class="w-full border rounded px-3 py-2"></div>';
         h += '<button onclick="saveSettings()" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save Settings</button>';
         h += '</div>';
         $('settings-body').innerHTML = h;

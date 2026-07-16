@@ -198,6 +198,7 @@ class Order(Base):
     sl_no = Column(Integer, default=0)
     po_no = Column(String, default="")
     po_date = Column(String, default="")
+    customer_name = Column(String, default="")
     billing_site = Column(String, default="")
     shipping_site = Column(String, default="")
     no_of_boxes = Column(Integer, default=0)
@@ -305,6 +306,7 @@ def startup_event():
         safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''")
         safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS pieces_per_box INTEGER DEFAULT 1")
         safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS std_packaging INTEGER DEFAULT 1")
+        safe_ddl("ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR DEFAULT ''")
         safe_ddl("ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_invoice_no_key")
         new_sale_cols = [
             "party_name", "payment_terms", "location", "pincode", "state",
@@ -771,6 +773,7 @@ class OrderIn(BaseModel):
     sl_no: int = 0
     po_no: str = ""
     po_date: str = ""
+    customer_name: str = ""
     billing_site: str = ""
     shipping_site: str = ""
     no_of_boxes: int = 0
@@ -963,6 +966,7 @@ def list_orders():
     try:
         rows = db.query(Order).order_by(Order.id).all()
         return [{"id": o.id, "sl_no": o.sl_no, "po_no": o.po_no, "po_date": o.po_date,
+                 "customer_name": o.customer_name or "",
                  "billing_site": o.billing_site, "shipping_site": o.shipping_site,
                  "no_of_boxes": o.no_of_boxes, "value_excl_gst_freight": o.value_excl_gst_freight,
                  "invoice_no": o.invoice_no, "invoice_date": o.invoice_date,
@@ -1956,6 +1960,7 @@ async def import_orders_csv(file: UploadFile = File(...)):
                 "sl_no": sl_no,
                 "po_no": "",
                 "po_date": parse_csv_date(row.get('PO Date', '')),
+                "customer_name": row.get('Customer Name', '').strip(),
                 "billing_site": row.get('Billing Site', '').strip(),
                 "shipping_site": row.get('Shipping Site', '').strip(),
                 "no_of_boxes": int(parse_csv_amount(row.get('No. Of Boxes', '0'))),
@@ -2476,6 +2481,7 @@ async def import_orders_xlsx(file: UploadFile = File(...)):
                     "sl_no": sl_no,
                     "po_no": "",
                     "po_date": parse_csv_date(row.get('PO Date', '')),
+                    "customer_name": row.get('Customer Name', '').strip(),
                     "billing_site": row.get('Billing Site', '').strip(),
                     "shipping_site": row.get('Shipping Site', '').strip(),
                     "no_of_boxes": int(parse_csv_amount(row.get('No. Of Boxes', '0'))),
@@ -2600,14 +2606,14 @@ def export_orders(format: str = "csv"):
     db = SessionLocal()
     try:
         rows = db.query(Order).order_by(Order.sl_no).all()
-        headers = ["Sl No.", "PO Date", "Billing Site", "Shipping Site", "No. Of Boxes",
+        headers = ["Sl No.", "PO No.", "PO Date", "Customer Name", "Billing Site", "Shipping Site", "No. Of Boxes",
                     "Value (excl. GST & Freight)", "Invoice No.", "Invoice Date",
                     "Invoice Amount (ex. GST)", "Weight (Kg)", "Freight (Rate / Kg)",
                     "Transport Charges", "Invoice Amount", "E-way Bill No", "LR No.",
                     "Entry Date", "Credit Note Amount", "Credit Note No.", "Transporter"]
         data = []
         for o in rows:
-            data.append([o.sl_no, o.po_date or "", o.billing_site or "", o.shipping_site or "",
+            data.append([o.sl_no, o.po_no or "", o.po_date or "", o.customer_name or "", o.billing_site or "", o.shipping_site or "",
                          o.no_of_boxes or 0, o.value_excl_gst_freight or 0, o.invoice_no or "",
                          o.invoice_date or "", o.invoice_amount_excl_gst or 0, o.weight_kgs or 0,
                          o.freight_rate_per_kg or 0, o.transport_charges or 0, o.invoice_amount or 0,

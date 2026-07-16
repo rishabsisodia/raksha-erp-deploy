@@ -7,6 +7,16 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex">
     <aside class="w-64 bg-gradient-to-b from-indigo-900 to-indigo-800 text-white min-h-screen fixed left-0 top-0 shadow-xl z-50">
@@ -94,7 +104,6 @@
                                 <a href="/api/export/orders?format=pdf" class="block px-4 py-2 hover:bg-gray-100 text-sm"><i class="fas fa-file-pdf mr-2 text-red-600"></i>PDF</a>
                             </div>
                         </div>
-                        <button onclick="showModal('m-order')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Order</button>
                         <button onclick="showProformaOrderModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><i class="fas fa-plus mr-1"></i>New PI/PO</button>
                     </div>
                 </div>
@@ -267,9 +276,9 @@
             <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg">Set Pricing</h3><button onclick="hideModal('m-pricing')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-pricing" class="p-5 space-y-3">
                 <input type="hidden" id="f-prpid">
-                <label class="block text-sm">Purchase Price (Excl. GST)</label><input type="number" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2">
-                <label class="block text-sm">MRP</label><input type="number" step="0.01" id="f-pmrp" class="w-full border rounded px-3 py-2">
-                <label class="block text-sm">GST Rate %</label><input type="number" step="0.01" id="f-pgst" class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">Purchase Price (Excl. GST)</label><input type="number" min="0" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">MRP</label><input type="number" min="0" step="0.01" id="f-pmrp" class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">GST Rate %</label><input type="number" min="0" step="0.01" id="f-pgst" class="w-full border rounded px-3 py-2">
                 <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 mt-2">Save Pricing</button>
             </form>
         </div>
@@ -286,29 +295,30 @@
                     <div><label class="block text-sm">PO Date</label><input type="date" id="f-opodate" class="w-full border rounded px-3 py-2"></div>
                     <div><label class="block text-sm">Entry Date</label><input type="date" id="f-oentrydate" class="w-full border rounded px-3 py-2"></div>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-3 gap-3">
+                    <div><label class="block text-sm">Customer Name</label><input type="text" id="f-ocustname" class="w-full border rounded px-3 py-2"></div>
                     <div><label class="block text-sm">Billing Site</label><input type="text" id="f-obilling" class="w-full border rounded px-3 py-2"></div>
                     <div><label class="block text-sm">Shipping Site</label><input type="text" id="f-oshipping" class="w-full border rounded px-3 py-2"></div>
                 </div>
                 <div class="grid grid-cols-3 gap-3">
-                    <div><label class="block text-sm">No. of Boxes</label><input type="number" id="f-oboxes" class="w-full border rounded px-3 py-2"></div>
-                    <div><label class="block text-sm">Value (Excl. GST & Freight)</label><input type="number" step="0.01" id="f-ovalue" class="w-full border rounded px-3 py-2"></div>
-                    <div><label class="block text-sm">Weight (in Kgs)</label><input type="number" step="0.01" id="f-oweight" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">No. of Boxes</label><input type="number" min="0" id="f-oboxes" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">Value (Excl. GST & Freight)</label><input type="number" min="0" step="0.01" id="f-ovalue" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">Weight (in Kgs)</label><input type="number" min="0" step="0.01" id="f-oweight" class="w-full border rounded px-3 py-2"></div>
                 </div>
                 <div class="border-t pt-3 mt-3">
                     <p class="font-bold text-sm mb-2">Invoice Details</p>
                     <div class="grid grid-cols-3 gap-3">
                         <div><label class="block text-sm">Invoice No.</label><input type="text" id="f-oinvno" class="w-full border rounded px-3 py-2"></div>
                         <div><label class="block text-sm">Invoice Date</label><input type="date" id="f-oinvdate" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Invoice Amount (Excl. GST)</label><input type="number" step="0.01" id="f-oinvamt" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm">Invoice Amount (Excl. GST)</label><input type="number" min="0" step="0.01" id="f-oinvamt" class="w-full border rounded px-3 py-2"></div>
                     </div>
                 </div>
                 <div class="border-t pt-3 mt-3">
                     <p class="font-bold text-sm mb-2">Freight & Transport</p>
                     <div class="grid grid-cols-3 gap-3">
-                        <div><label class="block text-sm">Freight Rate / Kg</label><input type="number" step="0.01" id="f-ofrate" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Transport Charges</label><input type="number" step="0.01" id="f-otcharges" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Invoice Amount</label><input type="number" step="0.01" id="f-oiamt" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm">Freight Rate / Kg</label><input type="number" min="0" step="0.01" id="f-ofrate" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm">Transport Charges</label><input type="number" min="0" step="0.01" id="f-otcharges" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm">Invoice Amount</label><input type="number" min="0" step="0.01" id="f-oiamt" class="w-full border rounded px-3 py-2"></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mt-3">
                         <div><label class="block text-sm">Transporter</label><input type="text" id="f-otransporter" class="w-full border rounded px-3 py-2"></div>
@@ -325,7 +335,7 @@
                 <div class="border-t pt-3 mt-3">
                     <p class="font-bold text-sm mb-2">Credit Note</p>
                     <div class="grid grid-cols-2 gap-3">
-                        <div><label class="block text-sm">Credit Note Amount</label><input type="number" step="0.01" id="f-ocnamt" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm">Credit Note Amount</label><input type="number" min="0" step="0.01" id="f-ocnamt" class="w-full border rounded px-3 py-2"></div>
                         <div><label class="block text-sm">Credit Note No.</label><input type="text" id="f-ocnno" class="w-full border rounded px-3 py-2"></div>
                     </div>
                 </div>
@@ -396,10 +406,10 @@
                 </div>
 
                 <div class="grid grid-cols-4 gap-3">
-                    <div><label class="block text-sm">Freight</label><input type="number" step="0.01" id="f-poofreight" value="0" class="w-full border rounded px-3 py-2" oninput="calcProformaTotals()"></div>
+                    <div><label class="block text-sm">Freight</label><input type="number" min="0" step="0.01" id="f-poofreight" value="0" class="w-full border rounded px-3 py-2" oninput="calcProformaTotals()"></div>
                     <div><label class="block text-sm">Payment</label><select id="f-poopaystatus" class="w-full border rounded px-3 py-2"><option>Pending</option><option>Paid</option><option>Partial</option></select></div>
                     <div><label class="block text-sm">Method</label><select id="f-poopaymethod" class="w-full border rounded px-3 py-2"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
-                    <div><label class="block text-sm">Delivery (Days)</label><input type="number" id="f-poodelivery" value="30" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">Delivery (Days)</label><input type="number" min="1" id="f-poodelivery" value="30" class="w-full border rounded px-3 py-2"></div>
                 </div>
 
                 <div class="bg-gray-50 rounded p-3 text-sm space-y-1">
@@ -524,15 +534,15 @@
                 <label class="block text-sm">Customer *</label><select id="f-slcust" required class="w-full border rounded px-3 py-2"></select>
                 <label class="block text-sm">Product *</label><select id="f-slprod" required class="w-full border rounded px-3 py-2" onchange="calcSale()"></select>
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Quantity *</label><input type="number" id="f-slqty" required class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
-                    <div><label class="block text-sm">Unit Price *</label><input type="number" step="0.01" id="f-slprice" required class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
+                    <div><label class="block text-sm">Quantity *</label><input type="number" min="1" id="f-slqty" required class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
+                    <div><label class="block text-sm">Unit Price *</label><input type="number" min="0" step="0.01" id="f-slprice" required class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Discount %</label><input type="number" step="0.01" id="f-sldisc" value="0" class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
-                    <div><label class="block text-sm">Freight</label><input type="number" step="0.01" id="f-slfrt" value="0" class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
+                    <div><label class="block text-sm">Discount %</label><input type="number" min="0" max="100" step="0.01" id="f-sldisc" value="0" class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
+                    <div><label class="block text-sm">Freight</label><input type="number" min="0" step="0.01" id="f-slfrt" value="0" class="w-full border rounded px-3 py-2" oninput="calcSale()"></div>
                 </div>
                 <div>
-                    <label class="block text-sm">Invoice Value</label><input type="number" step="0.01" id="f-slinvval" value="0" class="w-full border rounded px-3 py-2">
+                    <label class="block text-sm">Invoice Value</label><input type="number" min="0" step="0.01" id="f-slinvval" value="0" class="w-full border rounded px-3 py-2">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-sm">Payment</label><select id="f-slstatus" class="w-full border rounded px-3 py-2"><option>Pending</option><option>Paid</option><option>Partial</option></select></div>
@@ -557,7 +567,7 @@
                 <input type="hidden" id="f-eid">
                 <label class="block text-sm">Category *</label><select id="f-ecat" required class="w-full border rounded px-3 py-2"><option>Rent</option><option>Salary</option><option>Utilities</option><option>Transport</option><option>Raw Material</option><option>Maintenance</option><option>Marketing</option><option>Office</option><option>Depreciation</option><option>Interest</option><option>Other</option></select>
                 <label class="block text-sm">Description</label><input type="text" id="f-edesc" class="w-full border rounded px-3 py-2">
-                <label class="block text-sm">Amount *</label><input type="number" step="0.01" id="f-eamt" required class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">Amount *</label><input type="number" min="0" step="0.01" id="f-eamt" required class="w-full border rounded px-3 py-2">
                 <label class="block text-sm">Vendor</label><input type="text" id="f-evendor" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm">Date</label><input type="date" id="f-edate" class="w-full border rounded px-3 py-2">
                 <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save</button>
