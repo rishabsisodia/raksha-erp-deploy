@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, HTMLResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, date
 import os
@@ -701,13 +701,13 @@ class ProductIn(BaseModel):
 
 
 class PricingIn(BaseModel):
-    raw_material_cost: float = 0
-    mrp: float = 0
-    labor_cost: float = 0
-    overhead_cost: float = 0
-    packing_cost: float = 0
-    profit_margin: float = 20
-    gst_rate: float = 18
+    raw_material_cost: float = Field(0, ge=0)
+    mrp: float = Field(0, ge=0)
+    labor_cost: float = Field(0, ge=0)
+    overhead_cost: float = Field(0, ge=0)
+    packing_cost: float = Field(0, ge=0)
+    profit_margin: float = Field(20, ge=0)
+    gst_rate: float = Field(18, ge=0)
 
 
 class CustomerIn(BaseModel):
@@ -751,11 +751,11 @@ class TransporterIn(BaseModel):
 class SaleIn(BaseModel):
     customer_id: int
     product_id: int
-    quantity: int
-    unit_price: float
-    discount_percent: float = 0
-    freight_amount: float = 0
-    invoice_value: float = 0
+    quantity: int = Field(0, ge=0)
+    unit_price: float = Field(0, ge=0)
+    discount_percent: float = Field(0, ge=0, le=100)
+    freight_amount: float = Field(0, ge=0)
+    invoice_value: float = Field(0, ge=0)
     payment_status: str = "Pending"
     payment_method: str = "Cash"
     notes: str = ""
@@ -764,7 +764,7 @@ class SaleIn(BaseModel):
 class ExpenseIn(BaseModel):
     category: str
     description: str = ""
-    amount: float
+    amount: float = Field(0, ge=0)
     vendor: str = ""
     expense_date: Optional[str] = None
 
@@ -776,19 +776,19 @@ class OrderIn(BaseModel):
     customer_name: str = ""
     billing_site: str = ""
     shipping_site: str = ""
-    no_of_boxes: int = 0
-    value_excl_gst_freight: float = 0
+    no_of_boxes: int = Field(0, ge=0)
+    value_excl_gst_freight: float = Field(0, ge=0)
     invoice_no: str = ""
     invoice_date: str = ""
-    invoice_amount_excl_gst: float = 0
-    weight_kgs: float = 0
-    freight_rate_per_kg: float = 0
-    transport_charges: float = 0
-    invoice_amount: float = 0
+    invoice_amount_excl_gst: float = Field(0, ge=0)
+    weight_kgs: float = Field(0, ge=0)
+    freight_rate_per_kg: float = Field(0, ge=0)
+    transport_charges: float = Field(0, ge=0)
+    invoice_amount: float = Field(0, ge=0)
     eway_bill_no: str = ""
     lr_no: str = ""
     entry_date: str = ""
-    credit_note_amount: float = 0
+    credit_note_amount: float = Field(0, ge=0)
     credit_note_no: str = ""
     transporter: str = ""
     transporter_no: str = ""
@@ -800,32 +800,32 @@ class ProformaOrderItemIn(BaseModel):
     description: str = ""
     size: str = ""
     category: str = ""
-    qty_boxes: int = 1
-    std_packaging: int = 1
-    pieces_per_box: int = 1
-    final_qty: int = 0
-    mrp: float = 0
-    d1: float = 0
-    d2: float = 0
-    d3: float = 0
-    d4: float = 0
-    d5: float = 0
-    cd: float = 0
-    discount_percent: float = 0
-    net_rate: float = 0
-    lock_hinge: int = 0
-    basic_amount: float = 0
+    qty_boxes: int = Field(1, ge=0)
+    std_packaging: int = Field(1, ge=0)
+    pieces_per_box: int = Field(1, ge=0)
+    final_qty: int = Field(0, ge=0)
+    mrp: float = Field(0, ge=0)
+    d1: float = Field(0, ge=0, le=100)
+    d2: float = Field(0, ge=0, le=100)
+    d3: float = Field(0, ge=0, le=100)
+    d4: float = Field(0, ge=0, le=100)
+    d5: float = Field(0, ge=0, le=100)
+    cd: float = Field(0, ge=0, le=100)
+    discount_percent: float = Field(0, ge=0, le=100)
+    net_rate: float = Field(0, ge=0)
+    lock_hinge: int = Field(0, ge=0)
+    basic_amount: float = Field(0, ge=0)
 
 
 class ProformaOrderIn(BaseModel):
     customer_id: int
     billing_site: str = ""
     shipping_site: str = ""
-    freight_amount: float = 0
+    freight_amount: float = Field(0, ge=0)
     payment_status: str = "Pending"
     payment_method: str = "Cash"
     transport_mode: str = ""
-    delivery_days: int = 30
+    delivery_days: int = Field(30, ge=0)
     notes: str = ""
     terms: str = ""
     order_type: str = "PI"
@@ -1123,6 +1123,11 @@ def create_proforma_order(inp: ProformaOrderIn):
         total_basic = 0
 
         for item in inp.items:
+            net = item.mrp
+            for d in [item.d1, item.d2, item.d3, item.d4, item.d5, item.cd]:
+                net = net * (1 - d / 100)
+            item.net_rate = round(net, 2)
+            item.basic_amount = item.final_qty * item.net_rate
             total_qty += item.final_qty
             total_basic += item.basic_amount
 
@@ -1191,6 +1196,11 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn):
         total_qty = 0
         total_basic = 0
         for idx, item in enumerate(inp.items):
+            net = item.mrp
+            for d in [item.d1, item.d2, item.d3, item.d4, item.d5, item.cd]:
+                net = net * (1 - d / 100)
+            item.net_rate = round(net, 2)
+            item.basic_amount = item.final_qty * item.net_rate
             total_qty += item.final_qty
             total_basic += item.basic_amount
             db.add(ProformaOrderItem(
@@ -1862,7 +1872,8 @@ def dashboard():
         for o in db.query(Order).order_by(Order.id.desc()).limit(5).all():
             recent_orders.append({
                 "id": o.id, "sl_no": o.sl_no or 0,
-                "po_no": o.po_no or "", "billing_site": o.billing_site or "",
+                "po_no": o.po_no or "", "customer_name": o.customer_name or "",
+                "billing_site": o.billing_site or "",
                 "invoice_no": o.invoice_no or "",
                 "invoice_amount": o.invoice_amount or 0,
                 "entry_date": o.entry_date or ""

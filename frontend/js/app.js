@@ -497,7 +497,7 @@ async function loadDashboard() {
         d.recent_orders.forEach(function(o) {
             oh += '<div class="flex justify-between items-center p-2 border-b">';
             oh += '<div><p class="font-medium text-sm">' + (o.po_no || 'Order #' + o.sl_no) + '</p>';
-            oh += '<p class="text-xs text-gray-400">' + (o.billing_site || '') + (o.entry_date ? ' - ' + o.entry_date : '') + '</p></div>';
+            oh += '<p class="text-xs text-gray-400">' + (o.customer_name || o.billing_site || '') + (o.entry_date ? ' - ' + o.entry_date : '') + '</p></div>';
             oh += '<div class="text-right"><p class="font-bold text-sm">' + fmt(o.invoice_amount) + '</p>';
             oh += '<p class="text-xs text-gray-400">' + (o.invoice_no || '-') + '</p></div></div>';
         });
