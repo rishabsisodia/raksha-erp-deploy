@@ -3,6 +3,8 @@ var _products = [];
 var _customers = [];
 var _proformaItems = [];
 var _editingProformaId = null;
+var _sortState = {};
+var _tableData = {};
 
 function $(id) { return document.getElementById(id); }
 
@@ -68,11 +70,56 @@ function hideModal(id) { $(id).classList.add('hidden'); }
 
 function fmt(n) { return INR + Number(n || 0).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
 
+function sortTable(tableId, colIdx, type) {
+    var state = _sortState[tableId];
+    if (state && state.col === colIdx) {
+        state.asc = !state.asc;
+    } else {
+        _sortState[tableId] = { col: colIdx, asc: true };
+        state = _sortState[tableId];
+    }
+    var data = _tableData[tableId];
+    if (!data) return;
+    data.sort(function(a, b) {
+        var va = a.vals[colIdx], vb = b.vals[colIdx];
+        if (type === 'num') {
+            va = parseFloat(va) || 0; vb = parseFloat(vb) || 0;
+        } else {
+            va = (va || '').toString().toLowerCase();
+            vb = (vb || '').toString().toLowerCase();
+        }
+        if (va < vb) return state.asc ? -1 : 1;
+        if (va > vb) return state.asc ? 1 : -1;
+        return 0;
+    });
+    var tbody = document.getElementById(tableId);
+    if (tbody) {
+        var html = '';
+        data.forEach(function(row) { html += row.html; });
+        tbody.innerHTML = html;
+    }
+    var table = tbody ? tbody.closest('table') : null;
+    if (table) {
+        var ths = table.querySelectorAll('thead th');
+        ths.forEach(function(th, i) {
+            var arrow = th.querySelector('.sort-arrow');
+            if (!arrow) return;
+            if (i === colIdx) {
+                arrow.innerHTML = state.asc ? ' &#9650;' : ' &#9660;';
+                arrow.style.opacity = '1';
+            } else {
+                arrow.innerHTML = ' &#9650;';
+                arrow.style.opacity = '0.3';
+            }
+        });
+    }
+}
+
 async function loadProducts() {
     _products = await api('/api/products');
-    var h = '';
+    var sortRows = [];
     _products.forEach(function(p) {
-        h += '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-3 py-2">' + p.id + '</td>';
         h += '<td class="px-3 py-2">' + (p.part_no || '-') + '</td>';
         h += '<td class="px-3 py-2 font-medium">' + p.name + '</td>';
@@ -85,8 +132,11 @@ async function loadProducts() {
         h += '<button onclick="openPricing(' + p.id + ')" class="text-orange-600 hover:text-orange-800 mr-2" title="Pricing"><i class="fas fa-tag"></i></button>';
         h += '<button onclick="deleteProduct(' + p.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
+        sortRows.push({vals: [p.id, p.part_no||'', p.name, p.category||'', p.size||'', p.load_rating||'', p.mrp||0], html: h});
     });
-    $('t-products').innerHTML = h || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No products</td></tr>';
+    _tableData['t-products'] = sortRows;
+    _sortState['t-products'] = null;
+    $('t-products').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="8" class="text-center py-4 text-gray-400">No products</td></tr>';
 }
 
 function editProduct(id) {
@@ -178,6 +228,7 @@ async function loadAllOrders() {
         return da > db2 ? -1 : da < db2 ? 1 : 0;
     });
 
+    var sortRows = [];
     var h = '';
     rows.forEach(function(r) {
         var typeBadge = r.type === 'COGS'
@@ -192,23 +243,26 @@ async function loadAllOrders() {
         var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
         var viewFn = r.type === 'COGS' ? '' : '<button onclick="viewProformaOrder(' + r.id + ')" class="text-green-600 hover:text-green-800 mr-2" title="View"><i class="fas fa-eye"></i></button>';
 
-        h += '<tr class="border-b hover:bg-gray-50">';
-        h += '<td class="px-2 py-2">' + typeBadge + '</td>';
-        h += '<td class="px-2 py-2 font-medium">' + (r.ref || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (r.date || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + r.customer + '</td>';
-        h += '<td class="px-2 py-2">' + r.boxes + '</td>';
-        h += '<td class="px-2 py-2">' + fmt(r.value) + '</td>';
-        h += '<td class="px-2 py-2">' + r.invoice_no + '</td>';
-        h += '<td class="px-2 py-2 font-bold">' + fmt(r.invoice_amt) + '</td>';
-        h += '<td class="px-2 py-2">' + statusBadge + '</td>';
-        h += '<td class="px-2 py-2">';
-        h += '<button onclick="' + editFn + '" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += viewFn;
-        h += '<button onclick="' + deleteFn + '" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
-        h += '</td></tr>';
+        var rowH = '<tr class="border-b hover:bg-gray-50">';
+        rowH += '<td class="px-2 py-2">' + typeBadge + '</td>';
+        rowH += '<td class="px-2 py-2 font-medium">' + (r.ref || '-') + '</td>';
+        rowH += '<td class="px-2 py-2">' + (r.date || '-') + '</td>';
+        rowH += '<td class="px-2 py-2">' + r.customer + '</td>';
+        rowH += '<td class="px-2 py-2">' + r.boxes + '</td>';
+        rowH += '<td class="px-2 py-2">' + fmt(r.value) + '</td>';
+        rowH += '<td class="px-2 py-2">' + r.invoice_no + '</td>';
+        rowH += '<td class="px-2 py-2 font-bold">' + fmt(r.invoice_amt) + '</td>';
+        rowH += '<td class="px-2 py-2">' + statusBadge + '</td>';
+        rowH += '<td class="px-2 py-2">';
+        rowH += '<button onclick="' + editFn + '" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        rowH += viewFn;
+        rowH += '<button onclick="' + deleteFn + '" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        rowH += '</td></tr>';
+        sortRows.push({vals: [r.type, r.ref, r.date, r.customer, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.status], html: rowH});
     });
-    $('t-all-orders').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No orders</td></tr>';
+    _tableData['t-all-orders'] = sortRows;
+    _sortState['t-all-orders'] = null;
+    $('t-all-orders').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No orders</td></tr>';
 }
 
 function editOrder(id) {
@@ -254,9 +308,9 @@ async function deleteOrder(id) {
 
 async function loadCustomers() {
     _customers = await api('/api/customers');
-    var h = '';
+    var sortRows = [];
     _customers.forEach(function(c) {
-        h += '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-2 py-2 font-medium">' + (c.customer_id || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.contact_name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.gstin || '-') + '</td>';
@@ -270,16 +324,19 @@ async function loadCustomers() {
         h += '<button onclick="editCustomer(' + c.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
         h += '<button onclick="deleteCustomer(' + c.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
+        sortRows.push({vals: [c.customer_id||'', c.contact_name||'', c.gstin||'', c.state||'', c.district||'', c.city||'', c.contact_number||'', c.exec_name||'', c.blacklisted?'Blacklisted':'Active'], html: h});
     });
-    $('t-customers').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No customers</td></tr>';
+    _tableData['t-customers'] = sortRows;
+    _sortState['t-customers'] = null;
+    $('t-customers').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No customers</td></tr>';
 }
 
 var _transporters = [];
 async function loadTransporters() {
     _transporters = await api('/api/transporters');
-    var h = '';
+    var sortRows = [];
     _transporters.forEach(function(t) {
-        h += '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-2 py-2 font-medium">' + (t.transporter_id || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.phone || '-') + '</td>';
@@ -292,8 +349,11 @@ async function loadTransporters() {
         h += '<button onclick="editTransporter(' + t.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
         h += '<button onclick="deleteTransporter(' + t.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
+        sortRows.push({vals: [t.transporter_id||'', t.name||'', t.phone||'', t.state||'', t.gst_number||'', t.pan_number||'', t.contact_person||'', t.blacklisted?'Blacklisted':'Active'], html: h});
     });
-    $('t-transporters').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No transporters</td></tr>';
+    _tableData['t-transporters'] = sortRows;
+    _sortState['t-transporters'] = null;
+    $('t-transporters').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No transporters</td></tr>';
 }
 
 function editTransporter(id) {
@@ -367,9 +427,9 @@ try { $('f-csameaddr').addEventListener('change', function() {
 async function loadSales() {
     try {
     var sales = await api('/api/sales');
-    var h = '';
+    var rows = [];
     sales.forEach(function(s) {
-        h += '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-3 py-2 font-medium">' + (s.invoice_no || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.party_name || '-') + '</td>';
@@ -383,8 +443,11 @@ async function loadSales() {
         h += '<button onclick="editSale(' + s.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
         h += '<button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
+        rows.push({vals: [s.invoice_no||'', s.sale_date||'', s.party_name||'', s.location||'', s.transporter_name||'', s.freight_amount||0, s.total_amount||s.invoice_value||0, s.weight_kgs||0, s.gp_percent||0], html: h});
     });
-    $('t-sales').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No sales</td></tr>';
+    _tableData['t-sales'] = rows;
+    _sortState['t-sales'] = null;
+    $('t-sales').innerHTML = rows.map(function(r){return r.html;}).join('') || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No sales</td></tr>';
     } catch(e) { console.error('loadSales error:', e); toast('Error loading sales: ' + e.message, true); }
 }
 
@@ -444,9 +507,9 @@ async function calcSale() {
 
 async function loadExpenses() {
     var expenses = await api('/api/expenses');
-    var h = '';
+    var sortRows = [];
     expenses.forEach(function(e) {
-        h += '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b hover:bg-gray-50">';
         h += '<td class="px-3 py-2">' + (e.expense_date ? e.expense_date.substring(0, 10) : '-') + '</td>';
         h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + e.category + '</span></td>';
         h += '<td class="px-3 py-2">' + (e.description || '-') + '</td>';
@@ -456,8 +519,11 @@ async function loadExpenses() {
         h += '<button onclick="editExpense(' + e.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
         h += '<button onclick="deleteExpense(' + e.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
+        sortRows.push({vals: [e.expense_date||'', e.category, e.description||'', e.vendor||'', e.amount||0], html: h});
     });
-    $('t-expenses').innerHTML = h || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No expenses</td></tr>';
+    _tableData['t-expenses'] = sortRows;
+    _sortState['t-expenses'] = null;
+    $('t-expenses').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No expenses</td></tr>';
 }
 
 async function editExpense(id) {
