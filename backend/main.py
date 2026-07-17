@@ -1612,7 +1612,7 @@ def create_sale(inp: SaleIn):
             sgst_rate=gst_rate / 2, sgst_amount=sgst,
             freight_amount=inp.freight_amount, total_amount=total,
             payment_status=inp.payment_status, payment_method=inp.payment_method,
-            invoice_value=inp.invoice_value, notes=inp.notes
+            invoice_value=inp.invoice_value or total, notes=inp.notes
         )
         db.add(s)
         db.commit()
@@ -1671,7 +1671,7 @@ def update_sale(sid: int, inp: SaleIn):
         s.total_amount = total
         s.payment_status = inp.payment_status
         s.payment_method = inp.payment_method
-        s.invoice_value = inp.invoice_value
+        s.invoice_value = inp.invoice_value or total
         s.notes = inp.notes
 
         db.commit()

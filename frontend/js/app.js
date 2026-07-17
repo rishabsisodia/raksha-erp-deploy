@@ -376,7 +376,7 @@ async function loadSales() {
         h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
         h += '<td class="px-3 py-2">' + fmt(s.freight_amount) + '</td>';
-        h += '<td class="px-3 py-2 font-bold">' + fmt(s.invoice_value) + '</td>';
+        h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
         h += '<td class="px-3 py-2">';
