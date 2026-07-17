@@ -439,6 +439,7 @@ async function calcSale() {
     $('sv-sgst').textContent = fmt(sgst);
     $('sv-frt').textContent = fmt(frt);
     $('sv-total').textContent = fmt(total);
+    if ($('f-slinvval')) $('f-slinvval').value = total.toFixed(2);
 }
 
 async function loadExpenses() {
