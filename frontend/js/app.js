@@ -430,12 +430,14 @@ async function loadSales() {
     var sales = await api('/api/sales');
     var rows = [];
     sales.forEach(function(s) {
+        var tn = s.transporter_name || '-';
+        var tnDisplay = tn !== '-' ? '<span class="text-indigo-600 hover:text-indigo-800 underline cursor-pointer" onclick="event.stopPropagation(); addTransporterFromSales(\'' + tn.replace(/'/g, "\\'") + '\')">' + tn + '</span>' : tn;
         var h = '<tr class="border-b data-row" onclick="editSale(' + s.id + ')">';
         h += '<td class="px-3 py-2 font-medium">' + (s.invoice_no || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.party_name || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + tnDisplay + '</td>';
         h += '<td class="px-3 py-2">' + fmt(s.freight_amount) + '</td>';
         h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
@@ -450,6 +452,34 @@ async function loadSales() {
     _sortState['t-sales'] = null;
     $('t-sales').innerHTML = rows.map(function(r){return r.html;}).join('') || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No sales</td></tr>';
     } catch(e) { console.error('loadSales error:', e); toast('Error loading sales: ' + e.message, true); }
+}
+
+async function addTransporterFromSales(name) {
+    _transporters = await api('/api/transporters');
+    var existing = _transporters.find(function(t) { return t.name.toLowerCase() === name.toLowerCase(); });
+    if (existing) {
+        editTransporter(existing.id);
+    } else {
+        $('f-tid').value = '';
+        $('f-ttransid').value = '';
+        $('f-tname').value = name;
+        $('f-tphone').value = '';
+        $('f-temail').value = '';
+        $('f-taddr').value = '';
+        $('f-tstate').value = '';
+        $('f-tdistrict').value = '';
+        $('f-tcity').value = '';
+        $('f-tpincode').value = '';
+        $('f-tgst').value = '';
+        $('f-tpan').value = '';
+        $('f-tcontactperson').value = '';
+        $('f-tcontactnum').value = '';
+        $('f-tblacklisted').checked = false;
+        $('f-tgstfile-name').innerHTML = '';
+        $('f-tpanfile-name').innerHTML = '';
+        $('m-trans-title').textContent = 'Add Transporter - ' + name;
+        showModal('m-transporter');
+    }
 }
 
 async function deleteSale(id) {
