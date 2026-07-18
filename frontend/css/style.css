@@ -81,36 +81,20 @@ th.sort-active {
     color: #3730a3;
 }
 
-.sort-arrows {
-    display: inline-flex;
-    flex-direction: column;
+.sort-arrow {
+    display: inline-block;
     margin-left: 4px;
-    vertical-align: middle;
-    line-height: 1;
-    gap: 0;
-}
-
-.sort-arrows .arrow-up,
-.sort-arrows .arrow-down {
-    font-size: 8px;
-    line-height: 8px;
+    font-size: 10px;
     color: #9ca3af;
-    transition: color 0.15s ease, transform 0.15s ease;
+    transition: color 0.15s ease;
 }
 
-th.sortable:hover .sort-arrows .arrow-up,
-th.sortable:hover .sort-arrows .arrow-down {
+th.sortable:hover .sort-arrow {
     color: #6b7280;
 }
 
-th.sort-active .sort-arrows .arrow-active-up {
+th.sort-active .sort-arrow {
     color: #2563eb;
-    transform: scale(1.2);
-}
-
-th.sort-active .sort-arrows .arrow-active-down {
-    color: #2563eb;
-    transform: scale(1.2);
 }
 
 /* Row Interaction */
@@ -125,6 +109,14 @@ tr.data-row:hover {
 
 tr.data-row:active {
     background-color: #e0e7ff !important;
+}
+
+tr.freight-row {
+    background-color: #fffbeb !important;
+}
+
+tr.freight-row:hover {
+    background-color: #fef3c7 !important;
 }
 
 /* Action Buttons */
@@ -266,27 +258,4 @@ tr.data-row:active {
 .btn-cancel:hover {
     background-color: #e5e7eb;
     border-color: #d1d5db;
-}
-
-/* Tooltip for sort */
-th.sortable::after {
-    content: 'Click to sort';
-    position: absolute;
-    bottom: -28px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1f2937;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-    z-index: 10;
-}
-
-th.sortable:hover::after {
-    opacity: 1;
 }

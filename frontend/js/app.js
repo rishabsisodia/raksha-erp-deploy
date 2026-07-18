@@ -84,13 +84,14 @@ function sortTable(tableId, colIdx, type) {
         var va = a.vals[colIdx], vb = b.vals[colIdx];
         if (type === 'num') {
             va = parseFloat(va) || 0; vb = parseFloat(vb) || 0;
+            return state.asc ? va - vb : vb - va;
         } else {
             va = (va || '').toString().toLowerCase();
             vb = (vb || '').toString().toLowerCase();
+            if (va < vb) return state.asc ? -1 : 1;
+            if (va > vb) return state.asc ? 1 : -1;
+            return 0;
         }
-        if (va < vb) return state.asc ? -1 : 1;
-        if (va > vb) return state.asc ? 1 : -1;
-        return 0;
     });
     var tbody = document.getElementById(tableId);
     if (tbody) {
@@ -102,18 +103,14 @@ function sortTable(tableId, colIdx, type) {
     if (table) {
         var ths = table.querySelectorAll('thead th');
         ths.forEach(function(th, i) {
-            var arrowUp = th.querySelector('.arrow-up');
-            var arrowDown = th.querySelector('.arrow-down');
+            var arrow = th.querySelector('.sort-arrow');
+            if (!arrow) return;
             th.classList.remove('sort-active');
-            if (arrowUp) arrowUp.classList.remove('arrow-active-up');
-            if (arrowDown) arrowDown.classList.remove('arrow-active-down');
             if (i === colIdx) {
                 th.classList.add('sort-active');
-                if (state.asc && arrowUp) {
-                    arrowUp.classList.add('arrow-active-up');
-                } else if (!state.asc && arrowDown) {
-                    arrowDown.classList.add('arrow-active-down');
-                }
+                arrow.textContent = state.asc ? ' \u25B2' : ' \u25BC';
+            } else {
+                arrow.textContent = '';
             }
         });
     }
@@ -511,7 +508,28 @@ async function calcSale() {
 
 async function loadExpenses() {
     var expenses = await api('/api/expenses');
+    var sales = await api('/api/sales');
     var sortRows = [];
+    var totalFreight = 0;
+
+    sales.forEach(function(s) {
+        var frt = parseFloat(s.freight_amount) || 0;
+        var wt = parseFloat(s.weight_kgs) || 0;
+        var freightCost = frt * wt;
+        if (freightCost > 0) {
+            totalFreight += freightCost;
+            var h = '<tr class="border-b freight-row">';
+            h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
+            h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs bg-orange-100 text-orange-700">Freight</span></td>';
+            h += '<td class="px-3 py-2">Freight for ' + (s.invoice_no || 'Sale #' + s.id) + ' (' + wt + ' kg x ' + fmt(frt) + '/kg)</td>';
+            h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
+            h += '<td class="px-3 py-2 font-bold text-orange-600">' + fmt(freightCost) + '</td>';
+            h += '<td class="px-3 py-2"></td>';
+            h += '</tr>';
+            sortRows.push({vals: [s.sale_date||'', 'Freight', 'Freight for ' + (s.invoice_no||''), s.transporter_name||'', freightCost], html: h});
+        }
+    });
+
     expenses.forEach(function(e) {
         var h = '<tr class="border-b data-row" onclick="editExpense(' + e.id + ')">';
         h += '<td class="px-3 py-2">' + (e.expense_date ? e.expense_date.substring(0, 10) : '-') + '</td>';
@@ -525,6 +543,7 @@ async function loadExpenses() {
         h += '</td></tr>';
         sortRows.push({vals: [e.expense_date||'', e.category, e.description||'', e.vendor||'', e.amount||0], html: h});
     });
+
     _tableData['t-expenses'] = sortRows;
     _sortState['t-expenses'] = null;
     $('t-expenses').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No expenses</td></tr>';
