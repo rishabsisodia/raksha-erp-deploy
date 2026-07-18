@@ -102,14 +102,18 @@ function sortTable(tableId, colIdx, type) {
     if (table) {
         var ths = table.querySelectorAll('thead th');
         ths.forEach(function(th, i) {
-            var arrow = th.querySelector('.sort-arrow');
-            if (!arrow) return;
+            var arrowUp = th.querySelector('.arrow-up');
+            var arrowDown = th.querySelector('.arrow-down');
+            th.classList.remove('sort-active');
+            if (arrowUp) arrowUp.classList.remove('arrow-active-up');
+            if (arrowDown) arrowDown.classList.remove('arrow-active-down');
             if (i === colIdx) {
-                arrow.innerHTML = state.asc ? ' &#9650;' : ' &#9660;';
-                arrow.style.opacity = '1';
-            } else {
-                arrow.innerHTML = ' &#9650;';
-                arrow.style.opacity = '0.3';
+                th.classList.add('sort-active');
+                if (state.asc && arrowUp) {
+                    arrowUp.classList.add('arrow-active-up');
+                } else if (!state.asc && arrowDown) {
+                    arrowDown.classList.add('arrow-active-down');
+                }
             }
         });
     }
@@ -119,7 +123,7 @@ async function loadProducts() {
     _products = await api('/api/products');
     var sortRows = [];
     _products.forEach(function(p) {
-        var h = '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b data-row" onclick="editProduct(' + p.id + ')">';
         h += '<td class="px-3 py-2">' + p.id + '</td>';
         h += '<td class="px-3 py-2">' + (p.part_no || '-') + '</td>';
         h += '<td class="px-3 py-2 font-medium">' + p.name + '</td>';
@@ -127,10 +131,10 @@ async function loadProducts() {
         h += '<td class="px-3 py-2">' + (p.size || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (p.load_rating || '-') + '</td>';
         h += '<td class="px-3 py-2">' + fmt(p.mrp) + '</td>';
-        h += '<td class="px-3 py-2">';
-        h += '<button onclick="editProduct(' + p.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="openPricing(' + p.id + ')" class="text-orange-600 hover:text-orange-800 mr-2" title="Pricing"><i class="fas fa-tag"></i></button>';
-        h += '<button onclick="deleteProduct(' + p.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
+        h += '<button onclick="editProduct(' + p.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
+        h += '<button onclick="openPricing(' + p.id + ')" class="action-btn action-btn-pricing ml-1" title="Pricing"><i class="fas fa-tag"></i> Price</button>';
+        h += '<button onclick="deleteProduct(' + p.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
         sortRows.push({vals: [p.id, p.part_no||'', p.name, p.category||'', p.size||'', p.load_rating||'', p.mrp||0], html: h});
     });
@@ -241,9 +245,9 @@ async function loadAllOrders() {
         }
         var editFn = r.type === 'COGS' ? 'editOrder(' + r.id + ')' : 'editProformaOrder(' + r.id + ')';
         var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
-        var viewFn = r.type === 'COGS' ? '' : '<button onclick="viewProformaOrder(' + r.id + ')" class="text-green-600 hover:text-green-800 mr-2" title="View"><i class="fas fa-eye"></i></button>';
+        var viewFn = r.type === 'COGS' ? '' : '<button onclick="viewProformaOrder(' + r.id + ')" class="action-btn action-btn-view" title="View"><i class="fas fa-eye"></i> View</button>';
 
-        var rowH = '<tr class="border-b hover:bg-gray-50">';
+        var rowH = '<tr class="border-b data-row" onclick="' + editFn + '">';
         rowH += '<td class="px-2 py-2">' + typeBadge + '</td>';
         rowH += '<td class="px-2 py-2 font-medium">' + (r.ref || '-') + '</td>';
         rowH += '<td class="px-2 py-2">' + (r.date || '-') + '</td>';
@@ -253,10 +257,10 @@ async function loadAllOrders() {
         rowH += '<td class="px-2 py-2">' + r.invoice_no + '</td>';
         rowH += '<td class="px-2 py-2 font-bold">' + fmt(r.invoice_amt) + '</td>';
         rowH += '<td class="px-2 py-2">' + statusBadge + '</td>';
-        rowH += '<td class="px-2 py-2">';
-        rowH += '<button onclick="' + editFn + '" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        rowH += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
+        rowH += '<button onclick="' + editFn + '" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
         rowH += viewFn;
-        rowH += '<button onclick="' + deleteFn + '" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        rowH += '<button onclick="' + deleteFn + '" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         rowH += '</td></tr>';
         sortRows.push({vals: [r.type, r.ref, r.date, r.customer, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.status], html: rowH});
     });
@@ -310,7 +314,7 @@ async function loadCustomers() {
     _customers = await api('/api/customers');
     var sortRows = [];
     _customers.forEach(function(c) {
-        var h = '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b data-row" onclick="editCustomer(' + c.id + ')">';
         h += '<td class="px-2 py-2 font-medium">' + (c.customer_id || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.contact_name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.gstin || '-') + '</td>';
@@ -320,9 +324,9 @@ async function loadCustomers() {
         h += '<td class="px-2 py-2">' + (c.contact_number || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (c.exec_name || '-') + '</td>';
         h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (c.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (c.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
-        h += '<td class="px-2 py-2">';
-        h += '<button onclick="editCustomer(' + c.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="deleteCustomer(' + c.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
+        h += '<button onclick="editCustomer(' + c.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
+        h += '<button onclick="deleteCustomer(' + c.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
         sortRows.push({vals: [c.customer_id||'', c.contact_name||'', c.gstin||'', c.state||'', c.district||'', c.city||'', c.contact_number||'', c.exec_name||'', c.blacklisted?'Blacklisted':'Active'], html: h});
     });
@@ -336,7 +340,7 @@ async function loadTransporters() {
     _transporters = await api('/api/transporters');
     var sortRows = [];
     _transporters.forEach(function(t) {
-        var h = '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b data-row" onclick="editTransporter(' + t.id + ')">';
         h += '<td class="px-2 py-2 font-medium">' + (t.transporter_id || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.name || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.phone || '-') + '</td>';
@@ -345,9 +349,9 @@ async function loadTransporters() {
         h += '<td class="px-2 py-2">' + (t.pan_number || '-') + '</td>';
         h += '<td class="px-2 py-2">' + (t.contact_person || '-') + '</td>';
         h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (t.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (t.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
-        h += '<td class="px-2 py-2">';
-        h += '<button onclick="editTransporter(' + t.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="deleteTransporter(' + t.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
+        h += '<button onclick="editTransporter(' + t.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
+        h += '<button onclick="deleteTransporter(' + t.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
         sortRows.push({vals: [t.transporter_id||'', t.name||'', t.phone||'', t.state||'', t.gst_number||'', t.pan_number||'', t.contact_person||'', t.blacklisted?'Blacklisted':'Active'], html: h});
     });
@@ -429,7 +433,7 @@ async function loadSales() {
     var sales = await api('/api/sales');
     var rows = [];
     sales.forEach(function(s) {
-        var h = '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b data-row" onclick="editSale(' + s.id + ')">';
         h += '<td class="px-3 py-2 font-medium">' + (s.invoice_no || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.party_name || '-') + '</td>';
@@ -439,9 +443,9 @@ async function loadSales() {
         h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
-        h += '<td class="px-3 py-2">';
-        h += '<button onclick="editSale(' + s.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="deleteSale(' + s.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
+        h += '<button onclick="editSale(' + s.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
+        h += '<button onclick="deleteSale(' + s.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
         rows.push({vals: [s.invoice_no||'', s.sale_date||'', s.party_name||'', s.location||'', s.transporter_name||'', s.freight_amount||0, s.total_amount||s.invoice_value||0, s.weight_kgs||0, s.gp_percent||0], html: h});
     });
@@ -509,15 +513,15 @@ async function loadExpenses() {
     var expenses = await api('/api/expenses');
     var sortRows = [];
     expenses.forEach(function(e) {
-        var h = '<tr class="border-b hover:bg-gray-50">';
+        var h = '<tr class="border-b data-row" onclick="editExpense(' + e.id + ')">';
         h += '<td class="px-3 py-2">' + (e.expense_date ? e.expense_date.substring(0, 10) : '-') + '</td>';
         h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + e.category + '</span></td>';
         h += '<td class="px-3 py-2">' + (e.description || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (e.vendor || '-') + '</td>';
         h += '<td class="px-3 py-2 font-bold text-red-600">' + fmt(e.amount) + '</td>';
-        h += '<td class="px-3 py-2">';
-        h += '<button onclick="editExpense(' + e.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
-        h += '<button onclick="deleteExpense(' + e.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
+        h += '<button onclick="editExpense(' + e.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
+        h += '<button onclick="deleteExpense(' + e.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
         sortRows.push({vals: [e.expense_date||'', e.category, e.description||'', e.vendor||'', e.amount||0], html: h});
     });
