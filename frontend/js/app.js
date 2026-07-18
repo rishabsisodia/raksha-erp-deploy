@@ -604,39 +604,43 @@ async function loadDashboard() {
     try {
     var d = await api('/api/dashboard');
     var html = '';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500"><p class="text-gray-500 text-sm">Products</p><p class="text-2xl font-bold">' + d.total_products + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500"><p class="text-gray-500 text-sm">Customers</p><p class="text-2xl font-bold">' + d.total_customers + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500"><p class="text-gray-500 text-sm">Orders (COGS)</p><p class="text-2xl font-bold">' + d.total_orders + '</p><p class="text-xs text-gray-400">' + fmt(d.total_order_value) + ' invoiced</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500"><p class="text-gray-500 text-sm">Sales</p><p class="text-2xl font-bold">' + d.total_sales + '</p><p class="text-xs text-gray-400">' + fmt(d.revenue) + ' revenue</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500"><p class="text-gray-500 text-sm">Freight</p><p class="text-2xl font-bold">' + fmt(d.freight) + '</p></div>';
-    html += '<div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500"><p class="text-gray-500 text-sm">Pending</p><p class="text-2xl font-bold text-red-600">' + fmt(d.pending) + '</p></div>';
+    html += '<div class="stat-card card-indigo"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Products</p><p class="stat-value" style="color:#4f46e5;">' + d.total_products + '</p></div><div class="stat-icon indigo"><i class="fas fa-box"></i></div></div></div>';
+    html += '<div class="stat-card card-blue"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Customers</p><p class="stat-value" style="color:#3b82f6;">' + d.total_customers + '</p></div><div class="stat-icon blue"><i class="fas fa-users"></i></div></div></div>';
+    html += '<div class="stat-card card-purple"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Orders (COGS)</p><p class="stat-value" style="color:#8b5cf6;">' + d.total_orders + '</p><p class="stat-sub">' + fmt(d.total_order_value) + ' invoiced</p></div><div class="stat-icon purple"><i class="fas fa-clipboard-list"></i></div></div></div>';
+    html += '<div class="stat-card card-green"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Sales</p><p class="stat-value" style="color:#10b981;">' + d.total_sales + '</p><p class="stat-sub">' + fmt(d.revenue) + ' revenue</p></div><div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div></div></div>';
+    html += '<div class="stat-card card-orange"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Freight</p><p class="stat-value" style="color:#f59e0b;">' + fmt(d.freight) + '</p></div><div class="stat-icon orange"><i class="fas fa-truck"></i></div></div></div>';
+    html += '<div class="stat-card card-red"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Pending</p><p class="stat-value" style="color:#ef4444;">' + fmt(d.pending) + '</p></div><div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div></div></div>';
     $('dash-cards').innerHTML = html;
 
     var oh = '';
     if (d.recent_orders && d.recent_orders.length) {
         d.recent_orders.forEach(function(o) {
-            oh += '<div class="flex justify-between items-center p-2 border-b">';
-            oh += '<div><p class="font-medium text-sm">' + (o.po_no || 'Order #' + o.sl_no) + '</p>';
-            oh += '<p class="text-xs text-gray-400">' + (o.customer_name || o.billing_site || '') + (o.entry_date ? ' - ' + o.entry_date : '') + '</p></div>';
-            oh += '<div class="text-right"><p class="font-bold text-sm">' + fmt(o.invoice_amount) + '</p>';
-            oh += '<p class="text-xs text-gray-400">' + (o.invoice_no || '-') + '</p></div></div>';
+            oh += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:all 0.15s;border-radius:8px;cursor:pointer;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'transparent\'">';
+            oh += '<div><p style="font-weight:600;font-size:14px;color:#0f172a;">' + (o.po_no || 'Order #' + o.sl_no) + '</p>';
+            oh += '<p style="font-size:12px;color:#94a3b8;margin-top:2px;">' + (o.customer_name || o.billing_site || '') + (o.entry_date ? ' &middot; ' + o.entry_date : '') + '</p></div>';
+            oh += '<div style="text-align:right;"><p style="font-weight:700;font-size:14px;color:#0f172a;">' + fmt(o.invoice_amount) + '</p>';
+            oh += '<p style="font-size:11px;color:#94a3b8;">' + (o.invoice_no || '-') + '</p></div></div>';
         });
     } else {
-        oh = '<p class="text-gray-400 text-sm">No orders yet</p>';
+        oh = '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:24px;">No orders yet</p>';
     }
     $('dash-orders').innerHTML = oh;
 
     var rh = '';
     if (d.recent_sales && d.recent_sales.length) {
         d.recent_sales.forEach(function(s) {
-            rh += '<div class="flex justify-between items-center p-2 border-b">';
-            rh += '<div><p class="font-medium text-sm">' + (s.customer || 'Unknown') + '</p>';
-            rh += '<p class="text-xs text-gray-400">' + (s.invoice || '') + (s.date ? ' - ' + s.date : '') + '</p></div>';
-            rh += '<div class="text-right"><p class="font-bold text-sm">' + fmt(s.amount) + '</p>';
-            rh += '<span class="text-xs ' + (s.status === 'Paid' ? 'text-green-600' : 'text-orange-600') + '">' + (s.status || '') + '</span></div></div>';
+            var statusColor = s.status === 'Paid' ? 'color:#10b981;background:#ecfdf5;' : 'color:#f59e0b;background:#fffbeb;';
+            rh += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:all 0.15s;border-radius:8px;cursor:pointer;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'transparent\'">';
+            rh += '<div><p style="font-weight:600;font-size:14px;color:#0f172a;">' + (s.customer || 'Unknown') + '</p>';
+            rh += '<p style="font-size:12px;color:#94a3b8;margin-top:2px;">' + (s.invoice || '') + (s.date ? ' &middot; ' + s.date : '') + '</p></div>';
+            rh += '<div style="text-align:right;"><p style="font-weight:700;font-size:14px;color:#0f172a;">' + fmt(s.amount) + '</p>';
+            if (s.status) {
+                rh += '<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;display:inline-block;margin-top:2px;' + statusColor + '">' + s.status + '</span>';
+            }
+            rh += '</div></div>';
         });
     } else {
-        rh = '<p class="text-gray-400 text-sm">No sales yet</p>';
+        rh = '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:24px;">No sales yet</p>';
     }
     $('dash-recent').innerHTML = rh;
     } catch(e) { console.error('Dashboard error:', e); }
@@ -654,62 +658,62 @@ async function loadReport() {
     var h = '';
 
     h += '<div class="grid grid-cols-4 gap-4 mb-6">';
-    h += '<div class="bg-green-50 rounded-lg p-4 border border-green-200"><p class="text-sm text-green-600 font-medium">Revenue (Sales)</p><p class="text-2xl font-bold">' + fmt(d.total_revenue) + '</p><p class="text-xs text-gray-500">' + d.total_sales + ' sales | ' + d.units + ' units</p></div>';
-    h += '<div class="bg-red-50 rounded-lg p-4 border border-red-200"><p class="text-sm text-red-600 font-medium">COGS (Orders)</p><p class="text-2xl font-bold">' + fmt(d.total_cogs) + '</p><p class="text-xs text-gray-500">' + d.total_orders + ' orders | ' + d.order_boxes + ' boxes</p></div>';
-    h += '<div class="bg-purple-50 rounded-lg p-4 border border-purple-200"><p class="text-sm text-purple-600 font-medium">Gross Profit</p><p class="text-2xl font-bold">' + fmt(d.gross_profit) + '</p><p class="text-xs text-gray-500">' + d.gross_margin.toFixed(1) + '% margin</p></div>';
-    h += '<div class="bg-orange-50 rounded-lg p-4 border border-orange-200"><p class="text-sm text-orange-600 font-medium">EBITDA</p><p class="text-2xl font-bold">' + fmt(d.ebitda) + '</p><p class="text-xs text-gray-500">' + d.ebitda_margin.toFixed(1) + '% margin</p></div>';
+    h += '<div style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;padding:20px;border:1px solid #a7f3d0;"><p style="font-size:12px;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Revenue (Sales)</p><p style="font-size:26px;font-weight:800;color:#047857;letter-spacing:-0.03em;">' + fmt(d.total_revenue) + '</p><p style="font-size:12px;color:#6b7280;margin-top:4px;">' + d.total_sales + ' sales &middot; ' + d.units + ' units</p></div>';
+    h += '<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:12px;padding:20px;border:1px solid #fecaca;"><p style="font-size:12px;font-weight:600;color:#dc2626;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">COGS (Orders)</p><p style="font-size:26px;font-weight:800;color:#b91c1c;letter-spacing:-0.03em;">' + fmt(d.total_cogs) + '</p><p style="font-size:12px;color:#6b7280;margin-top:4px;">' + d.total_orders + ' orders &middot; ' + d.order_boxes + ' boxes</p></div>';
+    h += '<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:12px;padding:20px;border:1px solid #c4b5fd;"><p style="font-size:12px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Gross Profit</p><p style="font-size:26px;font-weight:800;color:#6d28d9;letter-spacing:-0.03em;">' + fmt(d.gross_profit) + '</p><p style="font-size:12px;color:#6b7280;margin-top:4px;">' + d.gross_margin.toFixed(1) + '% margin</p></div>';
+    h += '<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:20px;border:1px solid #fde68a;"><p style="font-size:12px;font-weight:600;color:#d97706;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">EBITDA</p><p style="font-size:26px;font-weight:800;color:#b45309;letter-spacing:-0.03em;">' + fmt(d.ebitda) + '</p><p style="font-size:12px;color:#6b7280;margin-top:4px;">' + d.ebitda_margin.toFixed(1) + '% margin</p></div>';
     h += '</div>';
 
-    h += '<div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200"><h4 class="font-bold text-green-700 mb-2"><i class="fas fa-arrow-up mr-2"></i>Revenue (Sales)</h4>';
-    h += '<div class="flex justify-between"><span>Sales Revenue:</span><span class="font-bold">' + fmt(d.sale_revenue) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Sales Freight:</span><span class="font-bold">' + fmt(d.sale_freight) + '</span></div>';
-    h += '<div class="flex justify-between"><span>GST Collected:</span><span class="font-bold">' + fmt(d.gst) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Units Sold:</span><span class="font-bold">' + d.units + '</span></div>';
+    h += '<div style="margin-bottom:20px;padding:20px;background:linear-gradient(135deg,#ecfdf5,#f0fdfa);border-radius:12px;border:1px solid #a7f3d0;"><h4 style="font-weight:700;color:#047857;margin-bottom:12px;font-size:15px;display:flex;align-items:center;gap:8px;"><span style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fas fa-arrow-up"></i></span>Revenue (Sales)</h4>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Sales Revenue:</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.sale_revenue) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Sales Freight:</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.sale_freight) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">GST Collected:</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.gst) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Units Sold:</span><span style="font-weight:700;color:#0f172a;">' + d.units + '</span></div>';
     if (d.gp_from_sales > 0) {
-        h += '<div class="flex justify-between"><span>GP (from Sales CSV):</span><span class="font-bold">' + fmt(d.gp_from_sales) + '</span></div>';
+        h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">GP (from Sales CSV):</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.gp_from_sales) + '</span></div>';
     }
     if (d.gp_avg > 0) {
-        h += '<div class="flex justify-between"><span>Avg GP%:</span><span class="font-bold">' + d.gp_avg.toFixed(1) + '%</span></div>';
+        h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Avg GP%:</span><span style="font-weight:700;color:#0f172a;">' + d.gp_avg.toFixed(1) + '%</span></div>';
     }
     h += '</div>';
 
-    h += '<div class="mb-4 p-4 bg-red-50 rounded-lg border border-red-200"><h4 class="font-bold text-red-700 mb-2"><i class="fas fa-arrow-down mr-2"></i>Cost of Goods (Orders)</h4>';
-    h += '<div class="flex justify-between"><span>Order Value (excl GST):</span><span class="font-bold">' + fmt(d.order_cogs) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Transport/Freight Cost:</span><span class="font-bold">' + fmt(d.order_freight_cost) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Total Invoice Amount:</span><span class="font-bold">' + fmt(d.order_invoice_total) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Total Boxes:</span><span class="font-bold">' + d.order_boxes + '</span></div>';
-    h += '<div class="flex justify-between"><span>Total Weight:</span><span class="font-bold">' + Number(d.order_weight).toLocaleString('en-IN') + ' Kgs</span></div>';
-    h += '<div class="flex justify-between"><span>Credit Notes:</span><span class="text-red-600 font-bold">' + fmt(d.order_credit_notes) + '</span></div>';
-    h += '<div class="flex justify-between border-t pt-1 mt-1 font-bold"><span>Total COGS:</span><span class="text-red-600">' + fmt(d.total_cogs) + '</span></div>';
+    h += '<div style="margin-bottom:20px;padding:20px;background:linear-gradient(135deg,#fef2f2,#fff1f2);border-radius:12px;border:1px solid #fecaca;"><h4 style="font-weight:700;color:#dc2626;margin-bottom:12px;font-size:15px;display:flex;align-items:center;gap:8px;"><span style="width:28px;height:28px;border-radius:8px;background:#fee2e2;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fas fa-arrow-down"></i></span>Cost of Goods (Orders)</h4>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Order Value (excl GST):</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.order_cogs) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Transport/Freight Cost:</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.order_freight_cost) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Total Invoice Amount:</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.order_invoice_total) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Total Boxes:</span><span style="font-weight:700;color:#0f172a;">' + d.order_boxes + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Total Weight:</span><span style="font-weight:700;color:#0f172a;">' + Number(d.order_weight).toLocaleString('en-IN') + ' Kgs</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Credit Notes:</span><span style="font-weight:700;color:#ef4444;">' + fmt(d.order_credit_notes) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:8px;border-top:2px solid #fecaca;font-weight:700;font-size:14px;"><span style="color:#374151;">Total COGS:</span><span style="color:#ef4444;">' + fmt(d.total_cogs) + '</span></div>';
     h += '</div>';
 
-    var gpC = d.gross_profit >= 0 ? 'text-green-600' : 'text-red-600';
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-calculator mr-2"></i>Gross Profit = Revenue - COGS</h4>';
-    h += '<div class="flex justify-between"><span>Revenue:</span><span class="font-bold">' + fmt(d.total_revenue) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Less: COGS:</span><span class="text-red-600 font-bold">' + fmt(d.total_cogs) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Less: Credit Notes:</span><span class="text-red-600 font-bold">' + fmt(d.order_credit_notes) + '</span></div>';
-    h += '<div class="flex justify-between border-t pt-1 mt-1 text-lg"><span>Gross Profit:</span><span class="font-bold ' + gpC + '">' + fmt(d.gross_profit) + ' (' + d.gross_margin.toFixed(1) + '%)</span></div>';
+    var gpC = d.gross_profit >= 0 ? 'color:#059669' : 'color:#ef4444';
+    h += '<div style="margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;"><h4 style="font-weight:700;color:#374151;margin-bottom:12px;font-size:15px;display:flex;align-items:center;gap:8px;"><span style="width:28px;height:28px;border-radius:8px;background:#e2e8f0;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fas fa-calculator"></i></span>Gross Profit = Revenue - COGS</h4>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Revenue:</span><span style="font-weight:700;color:#0f172a;">' + fmt(d.total_revenue) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Less: COGS:</span><span style="font-weight:700;color:#ef4444;">' + fmt(d.total_cogs) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">Less: Credit Notes:</span><span style="font-weight:700;color:#ef4444;">' + fmt(d.order_credit_notes) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:10px;border-top:2px solid #e2e8f0;font-size:16px;"><span style="font-weight:700;color:#0f172a;">Gross Profit:</span><span style="font-weight:800;' + gpC + ';">' + fmt(d.gross_profit) + ' (' + d.gross_margin.toFixed(1) + '%)</span></div>';
     h += '</div>';
 
-    h += '<div class="mb-4 p-4 bg-gray-50 rounded-lg"><h4 class="font-bold text-orange-700 mb-2"><i class="fas fa-building mr-2"></i>Operating Expenses</h4>';
+    h += '<div style="margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;"><h4 style="font-weight:700;color:#d97706;margin-bottom:12px;font-size:15px;display:flex;align-items:center;gap:8px;"><span style="width:28px;height:28px;border-radius:8px;background:#fef3c7;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fas fa-building"></i></span>Operating Expenses</h4>';
     var keys = Object.keys(d.expenses || {});
     if (keys.length) {
-        keys.forEach(function(k) { h += '<div class="flex justify-between"><span>' + k + ':</span><span class="text-red-600">' + fmt(d.expenses[k]) + '</span></div>'; });
+        keys.forEach(function(k) { h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">' + k + ':</span><span style="font-weight:700;color:#ef4444;">' + fmt(d.expenses[k]) + '</span></div>'; });
     } else {
-        h += '<p class="text-gray-400 text-sm">No expenses recorded</p>';
+        h += '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:16px;">No expenses recorded</p>';
     }
-    h += '<div class="flex justify-between border-t pt-1 mt-1 font-bold"><span>Total OpEx:</span><span class="text-red-600">' + fmt(d.total_opex) + '</span></div></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-weight:700;font-size:14px;"><span style="color:#374151;">Total OpEx:</span><span style="color:#ef4444;">' + fmt(d.total_opex) + '</span></div></div>';
 
-    var ebC = d.ebitda >= 0 ? 'text-green-600' : 'text-red-600';
-    h += '<div class="mb-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200"><h4 class="font-bold text-indigo-700 mb-2">EBITDA = Gross Profit - OpEx</h4>';
-    h += '<div class="flex justify-between text-lg"><span>Amount:</span><span class="font-bold ' + ebC + '">' + fmt(d.ebitda) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Margin:</span><span class="font-bold">' + d.ebitda_margin.toFixed(1) + '%</span></div></div>';
+    var ebC = d.ebitda >= 0 ? 'color:#4f46e5' : 'color:#ef4444';
+    h += '<div style="margin-bottom:20px;padding:20px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:12px;border:1px solid #c7d2fe;"><h4 style="font-weight:700;color:#4338ca;margin-bottom:12px;font-size:15px;">EBITDA = Gross Profit - OpEx</h4>';
+    h += '<div style="display:flex;justify-content:space-between;font-size:18px;"><span style="font-weight:600;color:#374151;">Amount:</span><span style="font-weight:800;' + ebC + ';">' + fmt(d.ebitda) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding-top:4px;font-size:14px;"><span style="color:#6b7280;">Margin:</span><span style="font-weight:700;color:#0f172a;">' + d.ebitda_margin.toFixed(1) + '%</span></div></div>';
 
-    var paC = d.pat >= 0 ? 'text-green-600' : 'text-red-600';
-    h += '<div class="p-4 bg-gray-900 text-white rounded-lg"><h4 class="font-bold mb-2">Profit After Tax</h4>';
-    h += '<div class="flex justify-between"><span>PBT:</span><span class="font-bold">' + fmt(d.ebitda) + '</span></div>';
-    h += '<div class="flex justify-between"><span>Tax @ ' + d.tax_rate + '%:</span><span class="text-red-400">' + fmt(d.tax) + '</span></div>';
-    h += '<div class="flex justify-between border-t pt-1 mt-1 text-xl"><span>PAT:</span><span class="font-bold ' + paC + '">' + fmt(d.pat) + '</span></div></div>';
+    var paC = d.pat >= 0 ? 'color:#10b981' : 'color:#ef4444';
+    h += '<div style="padding:24px;background:linear-gradient(135deg,#0f172a,#1e293b);color:white;border-radius:12px;"><h4 style="font-weight:700;margin-bottom:16px;font-size:15px;">Profit After Tax</h4>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;opacity:0.8;"><span>PBT:</span><span style="font-weight:700;">' + fmt(d.ebitda) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;opacity:0.8;"><span>Tax @ ' + d.tax_rate + '%:</span><span style="font-weight:700;color:#f87171;">' + fmt(d.tax) + '</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;padding:12px 0 0;margin-top:12px;border-top:2px solid rgba(255,255,255,0.15);font-size:22px;"><span style="font-weight:700;">PAT:</span><span style="font-weight:800;' + paC + ';">' + fmt(d.pat) + '</span></div></div>';
 
     $('rpt-body').innerHTML = h;
 
@@ -726,8 +730,9 @@ function destroyCharts() {
 function renderReportCharts(d) {
     destroyCharts();
     var colors = {
-        indigo: '#4f46e5', green: '#16a34a', red: '#dc2626', orange: '#ea580c',
-        purple: '#9333ea', blue: '#2563eb', yellow: '#ca8a04', teal: '#0d9488'
+        indigo: '#6366f1', green: '#10b981', red: '#ef4444', orange: '#f59e0b',
+        purple: '#8b5cf6', blue: '#3b82f6', yellow: '#eab308', teal: '#14b8a6',
+        pink: '#ec4899', cyan: '#06b6d4', lime: '#84cc16', rose: '#f43f5e'
     };
 
     // Revenue vs COGS Bar Chart
@@ -740,14 +745,28 @@ function renderReportCharts(d) {
                 datasets: [{
                     label: 'Amount',
                     data: [d.total_revenue || 0, d.total_cogs || 0, d.order_freight_cost || 0, d.order_credit_notes || 0],
-                    backgroundColor: [colors.green, colors.red, colors.orange, colors.yellow],
-                    borderRadius: 6
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.85)',
+                        'rgba(239, 68, 68, 0.85)',
+                        'rgba(245, 158, 11, 0.85)',
+                        'rgba(234, 179, 8, 0.85)'
+                    ],
+                    borderColor: [colors.green, colors.red, colors.orange, colors.yellow],
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
                 }]
             },
             options: {
                 responsive: true,
-                plugins: { title: { display: true, text: 'Revenue vs COGS', font: { size: 14, weight: 'bold' } }, legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '\u20B9' + v.toLocaleString('en-IN'); } } } }
+                plugins: {
+                    title: { display: true, text: 'Revenue vs COGS', font: { size: 15, weight: 'bold', family: 'Inter' }, padding: { bottom: 16 } },
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter', size: 11 }, callback: function(v) { return '\u20B9' + v.toLocaleString('en-IN'); } } },
+                    x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } }
+                }
             }
         });
     }
@@ -757,22 +776,33 @@ function renderReportCharts(d) {
     if (ctx2) {
         var expLabels = Object.keys(d.expenses || {});
         var expValues = expLabels.map(function(k) { return d.expenses[k]; });
-        var expColors = [colors.indigo, colors.green, colors.red, colors.orange, colors.purple, colors.blue, colors.yellow, colors.teal, '#64748b', '#f43f5e'];
-        if (expLabels.length === 0) { expLabels = ['No Expenses']; expValues = [1]; expColors = ['#e5e7eb']; }
+        var expColors = ['#6366f1', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#3b82f6', '#eab308', '#14b8a6', '#ec4899', '#06b6d4'];
+        if (expLabels.length === 0) { expLabels = ['No Expenses']; expValues = [1]; expColors = ['#e2e8f0']; }
         _reportCharts.expenses = new Chart(ctx2, {
             type: 'doughnut',
             data: {
                 labels: expLabels,
-                datasets: [{ data: expValues, backgroundColor: expColors.slice(0, expLabels.length), borderWidth: 2 }]
+                datasets: [{
+                    data: expValues,
+                    backgroundColor: expColors.slice(0, expLabels.length),
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 0,
+                    hoverOffset: 8
+                }]
             },
             options: {
                 responsive: true,
-                plugins: { title: { display: true, text: 'Expense Breakdown', font: { size: 14, weight: 'bold' } } }
+                cutout: '60%',
+                plugins: {
+                    title: { display: true, text: 'Expense Breakdown', font: { size: 15, weight: 'bold', family: 'Inter' }, padding: { bottom: 16 } },
+                    legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 } }
+                }
             }
         });
     }
 
-    // Gross Profit Gauge (horizontal bar)
+    // Profitability Waterfall (horizontal bar)
     var ctx3 = document.getElementById('chart-gp');
     if (ctx3) {
         _reportCharts.gp = new Chart(ctx3, {
@@ -782,15 +812,30 @@ function renderReportCharts(d) {
                 datasets: [{
                     label: 'Amount',
                     data: [d.gross_profit || 0, d.total_opex || 0, d.ebitda || 0, d.tax || 0, d.pat || 0],
-                    backgroundColor: [d.gross_profit >= 0 ? colors.green : colors.red, colors.red, d.ebitda >= 0 ? colors.indigo : colors.red, colors.orange, d.pat >= 0 ? colors.teal : colors.red],
-                    borderRadius: 6
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.85)',
+                        'rgba(239, 68, 68, 0.85)',
+                        'rgba(99, 102, 241, 0.85)',
+                        'rgba(245, 158, 11, 0.85)',
+                        'rgba(20, 184, 166, 0.85)'
+                    ],
+                    borderColor: [colors.green, colors.red, colors.indigo, colors.orange, colors.teal],
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
                 }]
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
-                plugins: { title: { display: true, text: 'Profitability Waterfall', font: { size: 14, weight: 'bold' } }, legend: { display: false } },
-                scales: { x: { ticks: { callback: function(v) { return '\u20B9' + v.toLocaleString('en-IN'); } } } }
+                plugins: {
+                    title: { display: true, text: 'Profitability Waterfall', font: { size: 15, weight: 'bold', family: 'Inter' }, padding: { bottom: 16 } },
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter', size: 11 }, callback: function(v) { return '\u20B9' + v.toLocaleString('en-IN'); } } },
+                    y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '500' } } }
+                }
             }
         });
     }
@@ -805,14 +850,29 @@ function renderReportCharts(d) {
                 datasets: [{
                     label: 'Count / Amount',
                     data: [d.total_sales || 0, d.total_orders || 0, d.units || 0, d.order_boxes || 0, d.gst || 0],
-                    backgroundColor: [colors.blue, colors.purple, colors.green, colors.orange, colors.yellow],
-                    borderRadius: 6
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.85)',
+                        'rgba(139, 92, 246, 0.85)',
+                        'rgba(16, 185, 129, 0.85)',
+                        'rgba(245, 158, 11, 0.85)',
+                        'rgba(234, 179, 8, 0.85)'
+                    ],
+                    borderColor: [colors.blue, colors.purple, colors.green, colors.orange, colors.yellow],
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
                 }]
             },
             options: {
                 responsive: true,
-                plugins: { title: { display: true, text: 'Key Metrics', font: { size: 14, weight: 'bold' } }, legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    title: { display: true, text: 'Key Metrics', font: { size: 15, weight: 'bold', family: 'Inter' }, padding: { bottom: 16 } },
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter', size: 11 } } },
+                    x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } }
+                }
             }
         });
     }
@@ -1602,12 +1662,12 @@ loadDashboard();
 async function loadSettings() {
     try {
         var s = await api('/api/settings');
-        var h = '<div class="space-y-4">';
-        h += '<div><label class="block text-sm font-medium mb-1">Company Name</label><input type="text" id="s-company" value="' + (s.company_name || 'Raksha') + '" class="w-full border rounded px-3 py-2"></div>';
-        h += '<div><label class="block text-sm font-medium mb-1">Default GST Rate %</label><input type="number" min="0" max="100" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" class="w-full border rounded px-3 py-2"></div>';
-        h += '<div><label class="block text-sm font-medium mb-1">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + (s.invoice_prefix || 'RFRP-') + '" class="w-full border rounded px-3 py-2"></div>';
-        h += '<div><label class="block text-sm font-medium mb-1">Tax Rate for P&L %</label><input type="number" min="0" max="100" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" class="w-full border rounded px-3 py-2"></div>';
-        h += '<button onclick="saveSettings()" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save Settings</button>';
+        var h = '<div style="display:flex;flex-direction:column;gap:20px;">';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Company Name</label><input type="text" id="s-company" value="' + (s.company_name || 'Raksha') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Default GST Rate %</label><input type="number" min="0" max="100" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + (s.invoice_prefix || 'RFRP-') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Tax Rate for P&L %</label><input type="number" min="0" max="100" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<button onclick="saveSettings()" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:10px 28px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.3);transition:all 0.15s;border:none;margin-top:12px;" onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 4px 16px rgba(16,185,129,0.4)\'" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 2px 8px rgba(16,185,129,0.3)\'">Save Settings</button>';
         h += '</div>';
         $('settings-body').innerHTML = h;
     } catch(e) { console.error('Settings error:', e); }
