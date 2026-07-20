@@ -321,6 +321,7 @@ def startup_event():
         safe_ddl("ALTER TABLE sales ALTER COLUMN invoice_value TYPE FLOAT USING invoice_value::float")
         safe_ddl("ALTER TABLE sales ADD COLUMN IF NOT EXISTS invoice_value FLOAT DEFAULT 0")
         safe_ddl("UPDATE sales SET invoice_value = total_amount WHERE invoice_value = 0 AND total_amount > 0")
+        safe_ddl("UPDATE sales SET total_amount = invoice_value WHERE invoice_value > 0 AND (total_amount = 0 OR total_amount = freight_amount)")
         customer_cols = [
             ("customer_id", "VARCHAR DEFAULT ''"),
             ("gstin", "VARCHAR DEFAULT ''"),
@@ -2067,7 +2068,7 @@ async def import_sales_csv(file: UploadFile = File(...)):
                 gp=gp,
                 gp_percent=gp_pct,
                 invoice_value=invoice_value,
-                total_amount=freight,
+                total_amount=invoice_value if invoice_value else freight,
                 source_csv="From Indore",
             )
             db.add(s)
@@ -2594,7 +2595,7 @@ async def import_sales_xlsx(file: UploadFile = File(...)):
                     gp=gp,
                     gp_percent=gp_pct,
                     invoice_value=invoice_value,
-                    total_amount=freight,
+                    total_amount=invoice_value if invoice_value else freight,
                     source_csv="From Indore",
                 )
                 db.add(s)
