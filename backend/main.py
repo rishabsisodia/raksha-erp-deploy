@@ -2048,7 +2048,7 @@ async def import_sales_csv(file: UploadFile = File(...)):
                 gp_pct = float(gp_pct_raw) if gp_pct_raw and gp_pct_raw not in ('-', '–', '', 'None') else 0
             except ValueError:
                 gp_pct = 0
-            invoice_value = parse_csv_amount(row.get('Invoice Value', '') or row.get('invoice_value', '0'))
+            invoice_value = parse_csv_amount(row.get('Raksha Invoice Value', '') or row.get('Invoice Value', '') or row.get('invoice_value', '0'))
             s = Sale(
                 invoice_no=invoice_no,
                 sale_date=sale_date_dt,
@@ -2575,7 +2575,7 @@ async def import_sales_xlsx(file: UploadFile = File(...)):
                     gp_pct = float(gp_pct_raw) if gp_pct_raw and gp_pct_raw not in ('-', '–', '', 'None') else 0
                 except ValueError:
                     gp_pct = 0
-                invoice_value = parse_csv_amount(row.get('Invoice Value', '') or row.get('invoice_value', '0'))
+                invoice_value = parse_csv_amount(row.get('Raksha Invoice Value', '') or row.get('Invoice Value', '') or row.get('invoice_value', '0'))
                 s = Sale(
                     invoice_no=invoice_no,
                     sale_date=sale_date_dt,
