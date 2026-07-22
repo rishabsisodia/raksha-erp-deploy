@@ -438,7 +438,7 @@ async function loadSales() {
         h += '<td class="px-3 py-2">' + (s.party_name || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
         h += '<td class="px-3 py-2">' + tnDisplay + '</td>';
-        h += '<td class="px-3 py-2">' + fmt(s.freight_amount) + '</td>';
+        h += '<td class="px-3 py-2">' + fmt((s.freight_amount || 0) * (s.weight_kgs || 0)) + '</td>';
         h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
@@ -446,7 +446,7 @@ async function loadSales() {
         h += '<button onclick="editSale(' + s.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
         h += '<button onclick="deleteSale(' + s.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
-        rows.push({vals: [s.invoice_no||'', s.sale_date||'', s.party_name||'', s.location||'', s.transporter_name||'', s.freight_amount||0, s.total_amount||s.invoice_value||0, s.weight_kgs||0, s.gp_percent||0], html: h});
+        rows.push({vals: [s.invoice_no||'', s.sale_date||'', s.party_name||'', s.location||'', s.transporter_name||'', (s.freight_amount||0)*(s.weight_kgs||0), s.total_amount||s.invoice_value||0, s.weight_kgs||0, s.gp_percent||0], html: h});
     });
     _tableData['t-sales'] = rows;
     _sortState['t-sales'] = null;

@@ -1778,7 +1778,7 @@ def profit_loss(start_date: str = None, end_date: str = None):
 
         # Revenue from Sales
         sale_revenue = sum(s.total_amount or 0 for s in sales)
-        sale_freight = sum(s.freight_amount or 0 for s in sales)
+        sale_freight = sum((s.freight_amount or 0) * (s.weight_kgs or 0) for s in sales)
         units = sum(s.quantity or 0 for s in sales)
         gst = sum((s.cgst_amount or 0) + (s.sgst_amount or 0) for s in sales)
         gp_from_sales = sum(s.gp or 0 for s in sales)
@@ -1842,7 +1842,7 @@ def dashboard():
         all_orders = db.query(Order).all()
 
         revenue = sum(s.total_amount or 0 for s in all_sales)
-        freight = sum(s.freight_amount or 0 for s in all_sales)
+        freight = sum((s.freight_amount or 0) * (s.weight_kgs or 0) for s in all_sales)
         gp_total = sum(s.gp or 0 for s in all_sales)
         pending = sum(s.total_amount or 0 for s in all_sales if s.payment_status == "Pending")
         total_order_value = sum(o.invoice_amount or 0 for o in all_orders)
