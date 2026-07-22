@@ -2576,7 +2576,17 @@ async def import_sales_xlsx(file: UploadFile = File(...)):
                 except ValueError:
                     gp_pct = 0
                 invoice_value = parse_csv_amount(row.get('Raksha Invoice Value', '') or row.get('Invoice Value', '') or row.get('invoice_value', '0'))
-                s = Sale(
+
+                existing = None
+                if invoice_no:
+                    existing = db.query(Sale).filter(Sale.invoice_no == invoice_no).first()
+                if not existing:
+                    existing = db.query(Sale).filter(
+                        Sale.party_name == (row.get('Party Name ', '') or row.get('Party Name', '') or '').strip(),
+                        Sale.sale_date == sale_date_dt
+                    ).first() if sale_date_dt else None
+
+                data = dict(
                     invoice_no=invoice_no,
                     sale_date=sale_date_dt,
                     payment_terms=row.get('Payment Terms', '').strip(),
@@ -2598,7 +2608,13 @@ async def import_sales_xlsx(file: UploadFile = File(...)):
                     total_amount=invoice_value if invoice_value else freight,
                     source_csv="From Indore",
                 )
-                db.add(s)
+
+                if existing:
+                    for k, v in data.items():
+                        setattr(existing, k, v)
+                else:
+                    s = Sale(**data)
+                    db.add(s)
                 imported += 1
             db.commit()
             return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} sales from XLSX"}
