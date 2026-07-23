@@ -2450,7 +2450,17 @@ async def import_standard_packaging(file: UploadFile = File(...)):
 def read_xlsx_sheet(file_content, sheet_name=None):
     import openpyxl
     wb = openpyxl.load_workbook(io.BytesIO(file_content), data_only=True)
-    ws = wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames else wb.active
+    ws = None
+    if sheet_name:
+        exact = [s for s in wb.sheetnames if s.strip().lower() == sheet_name.strip().lower()]
+        if exact:
+            ws = wb[exact[0]]
+        else:
+            partial = [s for s in wb.sheetnames if sheet_name.strip().lower() in s.strip().lower()]
+            if partial:
+                ws = wb[partial[0]]
+    if ws is None:
+        ws = wb.active
     rows = []
     for row in ws.iter_rows(values_only=True):
         rows.append([str(c) if c is not None else "" for c in row])
@@ -2469,7 +2479,7 @@ def rows_to_csv_string(rows):
 async def import_orders_xlsx(file: UploadFile = File(...)):
     content = await file.read()
     try:
-        rows = read_xlsx_sheet(content)
+        rows = read_xlsx_sheet(content, sheet_name='Orders')
         if not rows:
             raise HTTPException(400, "File is empty")
         csv_text = rows_to_csv_string(rows)
@@ -2539,7 +2549,7 @@ async def import_orders_xlsx(file: UploadFile = File(...)):
 async def import_sales_xlsx(file: UploadFile = File(...)):
     content = await file.read()
     try:
-        rows = read_xlsx_sheet(content)
+        rows = read_xlsx_sheet(content, sheet_name='Sales')
         if not rows:
             raise HTTPException(400, "File is empty")
         csv_text = rows_to_csv_string(rows)
