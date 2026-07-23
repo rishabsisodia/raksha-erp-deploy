@@ -2504,7 +2504,7 @@ async def import_orders_xlsx(file: UploadFile = File(...)):
                     "sl_no": sl_no,
                     "po_no": "",
                     "po_date": parse_csv_date(row.get('PO Date', '')),
-                    "customer_name": row.get('Customer Name', '').strip(),
+                    "customer_name": (row.get('Customer Name', '') or row.get('Billing Site', '') or '').strip(),
                     "billing_site": row.get('Billing Site', '').strip(),
                     "shipping_site": row.get('Shipping Site', '').strip(),
                     "no_of_boxes": int(parse_csv_amount(row.get('No. Of Boxes', '0'))),
