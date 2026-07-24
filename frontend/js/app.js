@@ -549,6 +549,47 @@ async function generateTrackingUrl() {
     }
 }
 
+async function fetchSingleTracking() {
+    var saleId = $('f-lrsaleid').value;
+    var lrNo = $('f-lrlrno').value.trim();
+    var btn = $('btn-fetch-tracking');
+    if (!lrNo) {
+        toast('Enter an LR number first', true);
+        return;
+    }
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Fetching...';
+    btn.disabled = true;
+    try {
+        var lrPayload = {lr_no: lrNo, lr_tracking_status: $('f-lrstatus').value, lr_tracking_url: $('f-lrurl').value};
+        await api('/api/sales/' + saleId + '/lr-tracking', {method: 'PUT', body: JSON.stringify(lrPayload)});
+        var result = await api('/api/fetch-tracking/' + saleId, {method: 'POST'});
+        if (result.status) {
+            $('f-lrstatus').value = result.status;
+            toast('Status fetched: ' + result.status + (result.location ? ' at ' + result.location : ''));
+            if (result.history && result.history.length > 0) {
+                var histHtml = '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;">';
+                histHtml += '<p style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Tracking History (' + (result.source || '') + '):</p>';
+                result.history.reverse().forEach(function(h) {
+                    histHtml += '<div style="display:flex;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
+                    histHtml += '<span style="color:#94a3b8;white-space:nowrap;">' + (h.date || '-') + '</span>';
+                    histHtml += '<span style="color:#64748b;">' + (h.location || '-') + '</span>';
+                    histHtml += '<span style="color:#0f172a;font-weight:600;">' + (h.status || '') + '</span>';
+                    histHtml += '</div>';
+                });
+                histHtml += '</div>';
+                var linkDiv = $('f-lrlink');
+                linkDiv.insertAdjacentHTML('afterend', histHtml);
+            }
+        } else {
+            toast(result.message || 'Could not fetch tracking status', true);
+        }
+    } catch(e) {
+        toast('Error: ' + e.message, true);
+    }
+    btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Fetch Status';
+    btn.disabled = false;
+}
+
 async function saveLrTracking() {
     var saleId = $('f-lrsaleid').value;
     var lrNo = $('f-lrlrno').value.trim();
@@ -576,6 +617,21 @@ async function saveLrTracking() {
     toast('LR tracking updated!');
     hideModal('m-lr-tracking');
     loadSales();
+}
+
+async function fetchBulkTracking() {
+    var btn = $('btn-fetch-all-tracking');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:4px;"></i>Fetching...';
+    btn.disabled = true;
+    try {
+        var result = await api('/api/fetch-tracking-bulk', {method: 'POST'});
+        toast('Updated ' + result.updated + ' shipments');
+        loadSales();
+    } catch(e) {
+        toast('Error: ' + e.message, true);
+    }
+    btn.innerHTML = '<i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch All Tracking';
+    btn.disabled = false;
 }
 
 async function editSale(id) {

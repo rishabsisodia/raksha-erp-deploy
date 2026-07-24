@@ -1781,6 +1781,243 @@ def auto_generate_tracking_urls():
         db.close()
 
 
+# ---- AUTO FETCH TRACKING STATUS ----
+import requests as http_requests
+from bs4 import BeautifulSoup
+
+TRACKING_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
+
+def fetch_vrl_tracking(lr_no):
+    try:
+        url = f"https://vrlgroup.in/Track/LRNumber/{lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.select('table tr')
+        statuses = []
+        for row in rows:
+            cells = row.find_all('td')
+            if len(cells) >= 3:
+                date_text = cells[0].get_text(strip=True)
+                location = cells[1].get_text(strip=True)
+                status = cells[2].get_text(strip=True)
+                if status:
+                    statuses.append({"date": date_text, "location": location, "status": status})
+        if statuses:
+            latest = statuses[-1]
+            return {"status": latest["status"], "location": latest["location"], "date": latest["date"], "history": statuses, "source": "VRL Logistics"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+def fetch_dtdc_tracking(lr_no):
+    try:
+        url = f"https://www.dtdc.in/tracking/dtdc-tracking-results.asp?Lrnos={lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.select('table tr')
+        statuses = []
+        for row in rows:
+            cells = row.find_all('td')
+            if len(cells) >= 3:
+                date_text = cells[0].get_text(strip=True)
+                location = cells[1].get_text(strip=True)
+                status = cells[2].get_text(strip=True)
+                if status and date_text:
+                    statuses.append({"date": date_text, "location": location, "status": status})
+        if statuses:
+            latest = statuses[-1]
+            return {"status": latest["status"], "location": latest["location"], "date": latest["date"], "history": statuses, "source": "DTDC"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+def fetch_safexpress_tracking(lr_no):
+    try:
+        url = f"https://www.safexpress.com/track-trace/{lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        text = soup.get_text()
+        statuses = []
+        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Exception", "Not Delivered"]:
+            if keyword.lower() in text.lower():
+                statuses.append(keyword)
+        if statuses:
+            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Safexpress"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+def fetch_gati_tracking(lr_no):
+    try:
+        url = f"https://www.gati.com/shipmentTracking/{lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        text = soup.get_text()
+        statuses = []
+        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Reached Destination", "Dispatched"]:
+            if keyword.lower() in text.lower():
+                statuses.append(keyword)
+        if statuses:
+            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Gati"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+def fetch_professional_tracking(lr_no):
+    try:
+        url = f"https://www.professional.couriers.in/tracking/{lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        text = soup.get_text()
+        statuses = []
+        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Exception"]:
+            if keyword.lower() in text.lower():
+                statuses.append(keyword)
+        if statuses:
+            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Professional Couriers"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+def fetch_ecom_express_tracking(lr_no):
+    try:
+        url = f"https://www.ecomexpress.in/tracking/{lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        text = soup.get_text()
+        statuses = []
+        for keyword in ["Picked", "In Transit", "Out for Delivery", "Delivered", "Reached"]:
+            if keyword.lower() in text.lower():
+                statuses.append(keyword)
+        if statuses:
+            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Ecom Express"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+def fetch_delhivery_tracking(lr_no):
+    try:
+        url = f"https://www.delhivery.com/tracking/package/{lr_no}"
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        text = soup.get_text()
+        statuses = []
+        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Reached Destination Hub"]:
+            if keyword.lower() in text.lower():
+                statuses.append(keyword)
+        if statuses:
+            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Delhivery"}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
+TRANSPORTER_TRACKERS = {
+    "vrl": fetch_vrl_tracking,
+    "vrl logistics": fetch_vrl_tracking,
+    "vrl group": fetch_vrl_tracking,
+    "dtdc": fetch_dtdc_tracking,
+    "dtdc courier": fetch_dtdc_tracking,
+    "dtdc express": fetch_dtdc_tracking,
+    "safexpress": fetch_safexpress_tracking,
+    "saf express": fetch_safexpress_tracking,
+    "gati": fetch_gati_tracking,
+    "gati courier": fetch_gati_tracking,
+    "professional": fetch_professional_tracking,
+    "professional couriers": fetch_professional_tracking,
+    "professional courier": fetch_professional_tracking,
+    "ecom": fetch_ecom_express_tracking,
+    "ecom express": fetch_ecom_express_tracking,
+    "delhivery": fetch_delhivery_tracking,
+}
+
+
+def get_tracker_for_transporter(transporter_name):
+    name_lower = (transporter_name or "").lower().strip()
+    for key, func in TRANSPORTER_TRACKERS.items():
+        if key in name_lower:
+            return func
+    return None
+
+
+@app.post("/api/fetch-tracking/{sid}")
+def fetch_tracking_status(sid: int):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(404, "Sale not found")
+        if not s.lr_no:
+            return {"status": "", "message": "No LR number set for this sale"}
+        tracker = get_tracker_for_transporter(s.transporter_name)
+        if not tracker:
+            return {"status": "", "message": f"No auto-tracking available for transporter: {s.transporter_name}. Add a tracking URL pattern in Transporter settings."}
+        result = tracker(s.lr_no)
+        if result.get("status"):
+            status = result["status"]
+            if "deliver" in status.lower():
+                s.lr_tracking_status = "Delivered"
+            elif "transit" in status.lower():
+                s.lr_tracking_status = "In Transit"
+            elif "out for delivery" in status.lower():
+                s.lr_tracking_status = "Out for Delivery"
+            elif "delay" in status.lower() or "exception" in status.lower():
+                s.lr_tracking_status = "Delayed"
+            else:
+                s.lr_tracking_status = status
+            s.lr_last_checked = datetime.utcnow()
+            db.commit()
+        return result
+    finally:
+        db.close()
+
+
+@app.post("/api/fetch-tracking-bulk")
+def fetch_tracking_bulk():
+    db = SessionLocal()
+    try:
+        sales = db.query(Sale).filter(Sale.lr_no != "", Sale.lr_no != None, Sale.lr_tracking_status != "Delivered").all()
+        updated = 0
+        results = []
+        for s in sales:
+            tracker = get_tracker_for_transporter(s.transporter_name)
+            if not tracker:
+                continue
+            try:
+                result = tracker(s.lr_no)
+                if result.get("status"):
+                    status = result["status"]
+                    if "deliver" in status.lower():
+                        s.lr_tracking_status = "Delivered"
+                    elif "transit" in status.lower():
+                        s.lr_tracking_status = "In Transit"
+                    elif "out for delivery" in status.lower():
+                        s.lr_tracking_status = "Out for Delivery"
+                    elif "delay" in status.lower() or "exception" in status.lower():
+                        s.lr_tracking_status = "Delayed"
+                    else:
+                        s.lr_tracking_status = status
+                    s.lr_last_checked = datetime.utcnow()
+                    updated += 1
+                    results.append({"sale_id": s.id, "lr_no": s.lr_no, "status": s.lr_tracking_status})
+            except Exception:
+                continue
+        db.commit()
+        return {"message": f"Updated {updated} shipments", "updated": updated, "results": results}
+    finally:
+        db.close()
+
+
 # ---- EXPENSES ----
 @app.get("/api/expenses")
 def list_expenses():

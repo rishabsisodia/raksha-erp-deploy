@@ -240,6 +240,7 @@
                                 <a href="/api/export/sales?format=pdf" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
                             </div>
                         </div>
+                        <button onclick="fetchBulkTracking()" id="btn-fetch-all-tracking" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch All Tracking</button>
                         <button onclick="showModal('m-sale')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>New Sale</button>
                     </div>
                 </div>
@@ -707,7 +708,10 @@
                 </select>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracking URL</label>
                 <input type="url" id="f-lrurl" class="w-full border rounded px-3 py-2 mb-2" placeholder="https://...">
-                <button onclick="generateTrackingUrl()" type="button" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px;color:#4f46e5;cursor:pointer;font-weight:600;margin-bottom:16px;"><i class="fas fa-magic mr-1"></i> Auto-generate URL from transporter</button>
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <button onclick="generateTrackingUrl()" type="button" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px;color:#4f46e5;cursor:pointer;font-weight:600;"><i class="fas fa-magic mr-1"></i> Auto-generate URL</button>
+                    <button onclick="fetchSingleTracking()" type="button" id="btn-fetch-tracking" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600;"><i class="fas fa-sync-alt mr-1"></i> Fetch Status</button>
+                </div>
                 <div id="f-lrlink" style="display:none;margin-bottom:16px;">
                     <a id="f-lrlinka" href="#" target="_blank" style="color:#4f46e5;text-decoration:underline;font-size:13px;"><i class="fas fa-external-link-alt mr-1"></i>Open tracking page</a>
                 </div>
