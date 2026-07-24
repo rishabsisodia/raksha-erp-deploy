@@ -112,6 +112,7 @@ class Transporter(Base):
     pan_card = Column(String, default="")
     contact_person = Column(String, default="")
     contact_number = Column(String, default="")
+    tracking_url_pattern = Column(String, default="")
     blacklisted = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -153,6 +154,9 @@ class Sale(Base):
     gp_percent = Column(Float, default=0)
     invoice_value = Column(Float, default=0)
     source_csv = Column(String, default="")
+    lr_tracking_status = Column(String, default="")
+    lr_tracking_url = Column(String, default="")
+    lr_last_checked = Column(DateTime, nullable=True)
     customer = relationship("Customer")
     product = relationship("Product")
 
@@ -308,6 +312,10 @@ def startup_event():
         safe_ddl("ALTER TABLE products ADD COLUMN IF NOT EXISTS std_packaging INTEGER DEFAULT 1")
         safe_ddl("ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR DEFAULT ''")
         safe_ddl("ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_invoice_no_key")
+        safe_ddl("ALTER TABLE transporters ADD COLUMN IF NOT EXISTS tracking_url_pattern VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE sales ADD COLUMN IF NOT EXISTS lr_tracking_status VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE sales ADD COLUMN IF NOT EXISTS lr_tracking_url VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE sales ADD COLUMN IF NOT EXISTS lr_last_checked TIMESTAMP")
         new_sale_cols = [
             "party_name", "payment_terms", "location", "pincode", "state",
             "transporter_name", "lr_no", "weight_kgs", "weight_pg_fiber",
@@ -322,6 +330,7 @@ def startup_event():
         safe_ddl("ALTER TABLE sales ADD COLUMN IF NOT EXISTS invoice_value FLOAT DEFAULT 0")
         safe_ddl("UPDATE sales SET invoice_value = total_amount WHERE invoice_value = 0 AND total_amount > 0")
         safe_ddl("UPDATE sales SET total_amount = invoice_value WHERE invoice_value > 0 AND (total_amount = 0 OR total_amount = freight_amount)")
+        safe_ddl("UPDATE sales SET total_amount = invoice_value WHERE invoice_value > freight_amount AND freight_amount > 0 AND total_amount = freight_amount")
         customer_cols = [
             ("customer_id", "VARCHAR DEFAULT ''"),
             ("gstin", "VARCHAR DEFAULT ''"),
@@ -747,6 +756,7 @@ class TransporterIn(BaseModel):
     pan_card: str = ""
     contact_person: str
     contact_number: str
+    tracking_url_pattern: str = ""
     blacklisted: int = 0
 
 
@@ -1449,6 +1459,7 @@ def list_transporters():
                  "gst_number": t.gst_number, "pan_number": t.pan_number,
                  "gst_certificate": t.gst_certificate, "pan_card": t.pan_card,
                  "contact_person": t.contact_person, "contact_number": t.contact_number,
+                 "tracking_url_pattern": t.tracking_url_pattern or "",
                  "blacklisted": t.blacklisted}
                 for t in rows]
     finally:
@@ -1577,6 +1588,9 @@ def list_sales():
                     "sale_date": s.sale_date.isoformat() if s.sale_date else None,
                     "payment_terms": s.payment_terms or "",
                     "source_csv": s.source_csv or "",
+                    "lr_tracking_status": s.lr_tracking_status or "",
+                    "lr_tracking_url": s.lr_tracking_url or "",
+                    "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
                 })
             except Exception:
                 continue
@@ -1678,6 +1692,83 @@ def update_sale(sid: int, inp: SaleIn):
 
         db.commit()
         return {"message": "Sale updated", "total": total}
+    finally:
+        db.close()
+
+
+# ---- LR TRACKING ----
+@app.put("/api/sales/{sid}/lr-tracking")
+def update_lr_tracking(sid: int, body: dict):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(404, "Sale not found")
+        s.lr_tracking_status = body.get("lr_tracking_status", s.lr_tracking_status or "")
+        s.lr_tracking_url = body.get("lr_tracking_url", s.lr_tracking_url or "")
+        s.lr_last_checked = datetime.utcnow()
+        db.commit()
+        return {"message": "LR tracking updated"}
+    finally:
+        db.close()
+
+
+@app.post("/api/sales/{sid}/generate-tracking-url")
+def generate_tracking_url(sid: int):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(404, "Sale not found")
+        if not s.transporter_name or not s.lr_no:
+            return {"tracking_url": "", "message": "No transporter or LR number found"}
+        t = db.query(Transporter).filter(Transporter.name.ilike(s.transporter_name)).first()
+        if not t or not t.tracking_url_pattern:
+            return {"tracking_url": "", "message": "No tracking URL pattern configured for this transporter"}
+        tracking_url = t.tracking_url_pattern.replace("{lr_no}", s.lr_no).replace("{LR_NO}", s.lr_no)
+        s.lr_tracking_url = tracking_url
+        s.lr_last_checked = datetime.utcnow()
+        db.commit()
+        return {"tracking_url": tracking_url}
+    finally:
+        db.close()
+
+
+@app.get("/api/sales/{sid}/lr-tracking")
+def get_lr_tracking(sid: int):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(404, "Sale not found")
+        return {
+            "lr_tracking_status": s.lr_tracking_status or "",
+            "lr_tracking_url": s.lr_tracking_url or "",
+            "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
+            "transporter_name": s.transporter_name or "",
+            "lr_no": s.lr_no or "",
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/auto-generate-tracking-urls")
+def auto_generate_tracking_urls():
+    db = SessionLocal()
+    try:
+        updated = 0
+        sales = db.query(Sale).filter(Sale.lr_no != "", Sale.lr_no != None).all()
+        transporters = {t.name.lower(): t for t in db.query(Transporter).all()}
+        for s in sales:
+            if s.lr_tracking_url:
+                continue
+            t = transporters.get((s.transporter_name or "").lower())
+            if t and t.tracking_url_pattern:
+                url = t.tracking_url_pattern.replace("{lr_no}", s.lr_no or "").replace("{LR_NO}", s.lr_no or "")
+                s.lr_tracking_url = url
+                updated += 1
+        db.commit()
+        return {"message": f"Generated tracking URLs for {updated} sales", "updated": updated}
     finally:
         db.close()
 
@@ -1848,6 +1939,11 @@ def dashboard():
         total_order_value = sum(o.invoice_amount or 0 for o in all_orders)
         total_order_cost = sum(o.value_excl_gst_freight or 0 for o in all_orders)
 
+        lr_in_transit = sum(1 for s in all_sales if s.lr_tracking_status == "In Transit")
+        lr_delivered = sum(1 for s in all_sales if s.lr_tracking_status == "Delivered")
+        lr_delayed = sum(1 for s in all_sales if s.lr_tracking_status == "Delayed")
+        lr_pending = sum(1 for s in all_sales if s.lr_no and not s.lr_tracking_status)
+
         recent_sales = []
         for s in db.query(Sale).order_by(Sale.id.desc()).limit(5).all():
             try:
@@ -1881,6 +1977,34 @@ def dashboard():
                 "entry_date": o.entry_date or ""
             })
 
+        monthly_revenue = {}
+        for s in all_sales:
+            if s.sale_date:
+                try:
+                    if hasattr(s.sale_date, 'strftime'):
+                        key = s.sale_date.strftime("%Y-%m")
+                    else:
+                        key = str(s.sale_date)[:7]
+                    monthly_revenue[key] = monthly_revenue.get(key, 0) + (s.total_amount or 0)
+                except Exception:
+                    pass
+        sorted_months = sorted(monthly_revenue.keys())[-12:]
+        revenue_chart = {"labels": sorted_months, "data": [monthly_revenue[m] for m in sorted_months]}
+
+        party_revenue = {}
+        for s in all_sales:
+            party = s.party_name or "Unknown"
+            party_revenue[party] = party_revenue.get(party, 0) + (s.total_amount or 0)
+        top_parties = sorted(party_revenue.items(), key=lambda x: x[1], reverse=True)[:8]
+        party_chart = {"labels": [p[0] for p in top_parties], "data": [p[1] for p in top_parties]}
+
+        location_revenue = {}
+        for s in all_sales:
+            loc = s.location or "Unknown"
+            location_revenue[loc] = location_revenue.get(loc, 0) + (s.total_amount or 0)
+        top_locations = sorted(location_revenue.items(), key=lambda x: x[1], reverse=True)[:8]
+        location_chart = {"labels": [l[0] for l in top_locations], "data": [l[1] for l in top_locations]}
+
         return {
             "total_products": db.query(Product).count(),
             "total_customers": db.query(Customer).count(),
@@ -1894,12 +2018,23 @@ def dashboard():
             "total_order_cost": total_order_cost,
             "recent_sales": recent_sales,
             "recent_orders": recent_orders,
+            "lr_in_transit": lr_in_transit,
+            "lr_delivered": lr_delivered,
+            "lr_delayed": lr_delayed,
+            "lr_pending": lr_pending,
+            "revenue_chart": revenue_chart,
+            "party_chart": party_chart,
+            "location_chart": location_chart,
         }
     except Exception as e:
         return {"error": str(e), "total_products": 0, "total_customers": 0,
                 "total_orders": 0, "total_sales": 0, "revenue": 0, "freight": 0,
                 "gp_total": 0, "pending": 0, "total_order_value": 0,
-                "total_order_cost": 0, "recent_sales": [], "recent_orders": []}
+                "total_order_cost": 0, "recent_sales": [], "recent_orders": [],
+                "lr_in_transit": 0, "lr_delivered": 0, "lr_delayed": 0, "lr_pending": 0,
+                "revenue_chart": {"labels": [], "data": []},
+                "party_chart": {"labels": [], "data": []},
+                "location_chart": {"labels": [], "data": []}}
     finally:
         db.close()
 
@@ -2068,7 +2203,7 @@ async def import_sales_csv(file: UploadFile = File(...)):
                 gp=gp,
                 gp_percent=gp_pct,
                 invoice_value=invoice_value,
-                total_amount=invoice_value if invoice_value else freight,
+                total_amount=invoice_value if invoice_value else 0,
                 source_csv="From Indore",
             )
             db.add(s)
@@ -2615,7 +2750,7 @@ async def import_sales_xlsx(file: UploadFile = File(...)):
                     gp=gp,
                     gp_percent=gp_pct,
                     invoice_value=invoice_value,
-                    total_amount=invoice_value if invoice_value else freight,
+                    total_amount=invoice_value if invoice_value else 0,
                     source_csv="From Indore",
                 )
 

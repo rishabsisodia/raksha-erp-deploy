@@ -374,6 +374,7 @@ function editTransporter(id) {
     $('f-tpan').value = t.pan_number || '';
     $('f-tcontactperson').value = t.contact_person || '';
     $('f-tcontactnum').value = t.contact_number || '';
+    $('f-ttrackurl').value = t.tracking_url_pattern || '';
     $('f-tblacklisted').checked = t.blacklisted === 1;
     $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a href="/api/view-file?url=' + encodeURIComponent(t.gst_certificate) + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
     $('f-tpanfile-name').innerHTML = t.pan_card ? '<a href="/api/view-file?url=' + encodeURIComponent(t.pan_card) + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
@@ -442,15 +443,33 @@ async function loadSales() {
         h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
+        var lrHtml = '-';
+        if (s.lr_no) {
+            var status = s.lr_tracking_status || '';
+            var badge = '';
+            if (status === 'Delivered') badge = '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Delivered</span>';
+            else if (status === 'In Transit') badge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">In Transit</span>';
+            else if (status === 'Delayed') badge = '<span style="background:#fef2f2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Delayed</span>';
+            else if (status === 'Out for Delivery') badge = '<span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Out for Delivery</span>';
+            else if (status === 'Delivered to Party') badge = '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Delivered to Party</span>';
+            else badge = '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Pending</span>';
+            var trackLink = s.lr_tracking_url ? '<a href="' + s.lr_tracking_url + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;text-decoration:underline;font-size:11px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
+            lrHtml = '<div style="display:flex;flex-direction:column;gap:2px;">' +
+                '<span style="font-size:11px;color:#64748b;">' + s.lr_no + '</span>' +
+                '<div style="display:flex;align-items:center;gap:4px;">' + badge + trackLink + '</div>' +
+                '<button onclick="event.stopPropagation();showLrTrackingModal(' + s.id + ',\'' + (s.lr_no||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_status||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_url||'').replace(/'/g,"\\'") + '\')" style="background:none;border:none;color:#4f46e5;font-size:11px;cursor:pointer;text-decoration:underline;">Update</button>' +
+                '</div>';
+        }
+        h += '<td class="px-3 py-2" onclick="event.stopPropagation()">' + lrHtml + '</td>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editSale(' + s.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
         h += '<button onclick="deleteSale(' + s.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         h += '</td></tr>';
-        rows.push({vals: [s.invoice_no||'', s.sale_date||'', s.party_name||'', s.location||'', s.transporter_name||'', (s.freight_amount||0)*(s.weight_kgs||0), s.total_amount||s.invoice_value||0, s.weight_kgs||0, s.gp_percent||0], html: h});
+        rows.push({vals: [s.invoice_no||'', s.sale_date||'', s.party_name||'', s.location||'', s.transporter_name||'', (s.freight_amount||0)*(s.weight_kgs||0), s.total_amount||s.invoice_value||0, s.weight_kgs||0, s.gp_percent||0, s.lr_tracking_status||''], html: h});
     });
     _tableData['t-sales'] = rows;
     _sortState['t-sales'] = null;
-    $('t-sales').innerHTML = rows.map(function(r){return r.html;}).join('') || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No sales</td></tr>';
+    $('t-sales').innerHTML = rows.map(function(r){return r.html;}).join('') || '<tr><td colspan="11" class="text-center py-4 text-gray-400">No sales</td></tr>';
     } catch(e) { console.error('loadSales error:', e); toast('Error loading sales: ' + e.message, true); }
 }
 
@@ -474,6 +493,7 @@ async function addTransporterFromSales(name) {
         $('f-tpan').value = '';
         $('f-tcontactperson').value = '';
         $('f-tcontactnum').value = '';
+        $('f-ttrackurl').value = '';
         $('f-tblacklisted').checked = false;
         $('f-tgstfile-name').innerHTML = '';
         $('f-tpanfile-name').innerHTML = '';
@@ -486,6 +506,33 @@ async function deleteSale(id) {
     if (!confirm('Delete this sale?')) return;
     await api('/api/sales/' + id, {method: 'DELETE'});
     toast('Sale deleted');
+    loadSales();
+}
+
+function showLrTrackingModal(saleId, lrNo, status, url) {
+    $('f-lrsaleid').value = saleId;
+    $('f-lrlrno').textContent = lrNo || '-';
+    $('f-lrstatus').value = status || '';
+    $('f-lrurl').value = url || '';
+    if (url) {
+        $('f-lrlink').style.display = 'block';
+        $('f-lrlinka').href = url;
+    } else {
+        $('f-lrlink').style.display = 'none';
+    }
+    showModal('m-lr-tracking');
+}
+
+async function saveLrTracking() {
+    var saleId = $('f-lrsaleid').value;
+    var status = $('f-lrstatus').value;
+    var url = $('f-lrurl').value;
+    await api('/api/sales/' + saleId + '/lr-tracking', {
+        method: 'PUT',
+        body: JSON.stringify({lr_tracking_status: status, lr_tracking_url: url})
+    });
+    toast('LR tracking updated!');
+    hideModal('m-lr-tracking');
     loadSales();
 }
 
@@ -612,6 +659,14 @@ async function loadDashboard() {
     html += '<div class="stat-card card-red"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><p class="stat-label">Pending</p><p class="stat-value" style="color:#ef4444;">' + fmt(d.pending) + '</p></div><div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div></div></div>';
     $('dash-cards').innerHTML = html;
 
+    var lrHtml = '';
+    lrHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+    lrHtml += '<div style="background:#dbeafe;border-radius:10px;padding:16px;text-align:center;border:1px solid #bfdbfe;"><p style="font-size:24px;font-weight:800;color:#1e40af;">' + (d.lr_in_transit || 0) + '</p><p style="font-size:12px;color:#1e40af;font-weight:600;margin-top:2px;">In Transit</p></div>';
+    lrHtml += '<div style="background:#dcfce7;border-radius:10px;padding:16px;border:1px solid #bbf7d0;"><p style="font-size:24px;font-weight:800;color:#166534;">' + (d.lr_delivered || 0) + '</p><p style="font-size:12px;color:#166534;font-weight:600;margin-top:2px;">Delivered</p></div>';
+    lrHtml += '<div style="background:#fef2f2;border-radius:10px;padding:16px;border:1px solid #fecaca;"><p style="font-size:24px;font-weight:800;color:#991b1b;">' + (d.lr_delayed || 0) + '</p><p style="font-size:12px;color:#991b1b;font-weight:600;margin-top:2px;">Delayed</p></div>';
+    lrHtml += '<div style="background:#f1f5f9;border-radius:10px;padding:16px;border:1px solid #e2e8f0;"><p style="font-size:24px;font-weight:800;color:#64748b;">' + (d.lr_pending || 0) + '</p><p style="font-size:12px;color:#64748b;font-weight:600;margin-top:2px;">Pending</p></div>';
+    $('dash-lr').innerHTML = lrHtml;
+
     var oh = '';
     if (d.recent_orders && d.recent_orders.length) {
         d.recent_orders.forEach(function(o) {
@@ -643,6 +698,37 @@ async function loadDashboard() {
         rh = '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:24px;">No sales yet</p>';
     }
     $('dash-recent').innerHTML = rh;
+
+    if (d.revenue_chart && d.revenue_chart.labels && d.revenue_chart.labels.length) {
+        var ctx1 = document.getElementById('chart-dash-revenue');
+        if (ctx1) {
+            if (ctx1._chartInstance) ctx1._chartInstance.destroy();
+            ctx1._chartInstance = new Chart(ctx1.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: d.revenue_chart.labels,
+                    datasets: [{label: 'Revenue', data: d.revenue_chart.data, backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6}]
+                },
+                options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'#f1f5f9'},ticks:{callback:function(v){return '₹'+v.toLocaleString('en-IN')}}}}}
+            });
+        }
+    }
+
+    if (d.location_chart && d.location_chart.labels && d.location_chart.labels.length) {
+        var ctx2 = document.getElementById('chart-dash-location');
+        if (ctx2) {
+            var colors = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#06b6d4'];
+            if (ctx2._chartInstance) ctx2._chartInstance.destroy();
+            ctx2._chartInstance = new Chart(ctx2.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: d.location_chart.labels,
+                    datasets: [{data: d.location_chart.data, backgroundColor: colors.slice(0, d.location_chart.labels.length), borderWidth: 0}]
+                },
+                options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},padding:8}}}}
+            });
+        }
+    }
     } catch(e) { console.error('Dashboard error:', e); }
 }
 
@@ -1072,6 +1158,7 @@ $('f-transporter').addEventListener('submit', async function(e) {
         pan_card: panCard,
         contact_person: $('f-tcontactperson').value,
         contact_number: $('f-tcontactnum').value,
+        tracking_url_pattern: $('f-ttrackurl').value,
         blacklisted: $('f-tblacklisted').checked ? 1 : 0
     };
     try {
