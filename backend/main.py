@@ -1731,13 +1731,31 @@ def generate_tracking_url(sid: int):
         if not s.transporter_name or not s.lr_no:
             return {"tracking_url": "", "message": "No transporter or LR number found"}
         t = db.query(Transporter).filter(Transporter.name.ilike(s.transporter_name)).first()
-        if not t or not t.tracking_url_pattern:
-            return {"tracking_url": "", "message": "No tracking URL pattern configured for this transporter"}
-        tracking_url = t.tracking_url_pattern.replace("{lr_no}", s.lr_no).replace("{LR_NO}", s.lr_no)
-        s.lr_tracking_url = tracking_url
-        s.lr_last_checked = datetime.utcnow()
-        db.commit()
-        return {"tracking_url": tracking_url}
+        if t and t.tracking_url_pattern:
+            tracking_url = t.tracking_url_pattern.replace("{lr_no}", s.lr_no).replace("{LR_NO}", s.lr_no)
+            s.lr_tracking_url = tracking_url
+            s.lr_last_checked = datetime.utcnow()
+            db.commit()
+            return {"tracking_url": tracking_url}
+        name_lower = s.transporter_name.lower()
+        default_patterns = {
+            "vrl": "https://vrlgroup.in/Track/LRNumber/{lr_no}",
+            "v trans": "https://vrlgroup.in/Track/LRNumber/{lr_no}",
+            "dtdc": "https://www.dtdc.in/tracking/dtdc-tracking-results.asp?Lrnos={lr_no}",
+            "safexpress": "https://www.safexpress.com/track-trace/{lr_no}",
+            "gati": "https://www.gati.com/shipmentTracking/{lr_no}",
+            "professional": "https://www.professional.couriers.in/tracking/{lr_no}",
+            "ecom": "https://www.ecomexpress.in/tracking/{lr_no}",
+            "delhivery": "https://www.delhivery.com/tracking/package/{lr_no}",
+        }
+        for key, pattern in default_patterns.items():
+            if key in name_lower:
+                tracking_url = pattern.replace("{lr_no}", s.lr_no)
+                s.lr_tracking_url = tracking_url
+                s.lr_last_checked = datetime.utcnow()
+                db.commit()
+                return {"tracking_url": tracking_url}
+        return {"tracking_url": "", "message": "No tracking URL pattern configured for this transporter. Add one in Transporter settings."}
     finally:
         db.close()
 
@@ -1926,6 +1944,8 @@ TRANSPORTER_TRACKERS = {
     "vrl": fetch_vrl_tracking,
     "vrl logistics": fetch_vrl_tracking,
     "vrl group": fetch_vrl_tracking,
+    "v trans": fetch_vrl_tracking,
+    "v xpress": fetch_vrl_tracking,
     "dtdc": fetch_dtdc_tracking,
     "dtdc courier": fetch_dtdc_tracking,
     "dtdc express": fetch_dtdc_tracking,
@@ -1950,6 +1970,25 @@ def get_tracker_for_transporter(transporter_name):
     return None
 
 
+def fetch_generic_tracking(lr_no, tracking_url_pattern):
+    try:
+        if not tracking_url_pattern:
+            return {"status": "", "message": "No tracking URL pattern configured"}
+        url = tracking_url_pattern.replace("{lr_no}", lr_no).replace("{LR_NO}", lr_no)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False, allow_redirects=True)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        text = soup.get_text().lower()
+        statuses = []
+        for keyword in ["delivered", "out for delivery", "in transit", "picked up", "dispatched", "reached destination", "arrived", "exception", "delayed", "not delivered"]:
+            if keyword in text:
+                statuses.append(keyword.title())
+        if statuses:
+            return {"status": statuses[0], "location": "", "date": "", "history": [], "source": "Web", "url": url}
+        return {"status": "", "message": "Could not parse tracking status from page", "url": url}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
+
+
 @app.post("/api/fetch-tracking/{sid}")
 def fetch_tracking_status(sid: int):
     db = SessionLocal()
@@ -1960,9 +1999,14 @@ def fetch_tracking_status(sid: int):
         if not s.lr_no:
             return {"status": "", "message": "No LR number set for this sale"}
         tracker = get_tracker_for_transporter(s.transporter_name)
-        if not tracker:
-            return {"status": "", "message": f"No auto-tracking available for transporter: {s.transporter_name}. Add a tracking URL pattern in Transporter settings."}
-        result = tracker(s.lr_no)
+        if tracker:
+            result = tracker(s.lr_no)
+        else:
+            t = db.query(Transporter).filter(Transporter.name.ilike(s.transporter_name)).first()
+            if t and t.tracking_url_pattern:
+                result = fetch_generic_tracking(s.lr_no, t.tracking_url_pattern)
+            else:
+                return {"status": "", "message": f"No auto-tracking available for transporter: {s.transporter_name}. Add a tracking URL pattern in Transporter settings."}
         if result.get("status"):
             status = result["status"]
             if "deliver" in status.lower():
@@ -1976,6 +2020,9 @@ def fetch_tracking_status(sid: int):
             else:
                 s.lr_tracking_status = status
             s.lr_last_checked = datetime.utcnow()
+            db.commit()
+        if result.get("url") and not s.lr_tracking_url:
+            s.lr_tracking_url = result["url"]
             db.commit()
         return result
     finally:
@@ -1991,10 +2038,15 @@ def fetch_tracking_bulk():
         results = []
         for s in sales:
             tracker = get_tracker_for_transporter(s.transporter_name)
-            if not tracker:
-                continue
-            try:
+            if tracker:
                 result = tracker(s.lr_no)
+            else:
+                t = db.query(Transporter).filter(Transporter.name.ilike(s.transporter_name)).first()
+                if t and t.tracking_url_pattern:
+                    result = fetch_generic_tracking(s.lr_no, t.tracking_url_pattern)
+                else:
+                    continue
+            try:
                 if result.get("status"):
                     status = result["status"]
                     if "deliver" in status.lower():
@@ -2008,6 +2060,8 @@ def fetch_tracking_bulk():
                     else:
                         s.lr_tracking_status = status
                     s.lr_last_checked = datetime.utcnow()
+                    if result.get("url") and not s.lr_tracking_url:
+                        s.lr_tracking_url = result["url"]
                     updated += 1
                     results.append({"sale_id": s.id, "lr_no": s.lr_no, "status": s.lr_tracking_status})
             except Exception:
