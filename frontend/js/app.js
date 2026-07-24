@@ -428,6 +428,7 @@ try { $('f-csameaddr').addEventListener('change', function() {
 
 async function loadSales() {
     try {
+    api('/api/auto-generate-tracking-urls', {method: 'POST'}).catch(function(){});
     var sales = await api('/api/sales');
     var rows = [];
     sales.forEach(function(s) {
@@ -443,7 +444,7 @@ async function loadSales() {
         h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
         h += '<td class="px-3 py-2">' + (s.weight_kgs || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.gp_percent ? Number(s.gp_percent).toFixed(1) + '%' : '-') + '</td>';
-        var lrHtml = '-';
+        var lrHtml = '';
         if (s.lr_no) {
             var status = s.lr_tracking_status || '';
             var badge = '';
@@ -455,11 +456,13 @@ async function loadSales() {
             else badge = '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Pending</span>';
             var trackLink = s.lr_tracking_url ? '<a href="' + s.lr_tracking_url + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;text-decoration:underline;font-size:11px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
             lrHtml = '<div style="display:flex;flex-direction:column;gap:2px;">' +
-                '<span style="font-size:11px;color:#64748b;">' + s.lr_no + '</span>' +
+                '<span style="font-size:11px;color:#64748b;font-weight:600;">' + s.lr_no + '</span>' +
                 '<div style="display:flex;align-items:center;gap:4px;">' + badge + trackLink + '</div>' +
-                '<button onclick="event.stopPropagation();showLrTrackingModal(' + s.id + ',\'' + (s.lr_no||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_status||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_url||'').replace(/'/g,"\\'") + '\')" style="background:none;border:none;color:#4f46e5;font-size:11px;cursor:pointer;text-decoration:underline;">Update</button>' +
                 '</div>';
+        } else {
+            lrHtml = '<span style="color:#94a3b8;font-size:11px;">No LR</span>';
         }
+        lrHtml += '<button onclick="event.stopPropagation();showLrTrackingModal(' + s.id + ',\'' + (s.lr_no||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_status||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_url||'').replace(/'/g,"\\'") + '\',\'' + (s.transporter_name||'').replace(/'/g,"\\'") + '\')" style="background:none;border:none;color:#4f46e5;font-size:11px;cursor:pointer;text-decoration:underline;display:block;margin-top:3px;">' + (s.lr_no ? 'Update' : '+ Add LR') + '</button>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">' + lrHtml + '</td>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editSale(' + s.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -509,9 +512,10 @@ async function deleteSale(id) {
     loadSales();
 }
 
-function showLrTrackingModal(saleId, lrNo, status, url) {
+function showLrTrackingModal(saleId, lrNo, status, url, transporter) {
     $('f-lrsaleid').value = saleId;
-    $('f-lrlrno').textContent = lrNo || '-';
+    $('f-lrlrno').value = lrNo || '';
+    $('f-lrtransporter').value = transporter || '';
     $('f-lrstatus').value = status || '';
     $('f-lrurl').value = url || '';
     if (url) {
@@ -523,14 +527,52 @@ function showLrTrackingModal(saleId, lrNo, status, url) {
     showModal('m-lr-tracking');
 }
 
+async function generateTrackingUrl() {
+    var saleId = $('f-lrsaleid').value;
+    var lrNo = $('f-lrlrno').value.trim();
+    if (!lrNo) {
+        toast('Enter an LR number first', true);
+        return;
+    }
+    try {
+        var result = await api('/api/sales/' + saleId + '/generate-tracking-url', {method: 'POST'});
+        if (result.tracking_url) {
+            $('f-lrurl').value = result.tracking_url;
+            $('f-lrlink').style.display = 'block';
+            $('f-lrlinka').href = result.tracking_url;
+            toast('Tracking URL generated!');
+        } else {
+            toast(result.message || 'No tracking URL pattern configured for this transporter. Add it in Transporter settings.', true);
+        }
+    } catch(e) {
+        toast('Error: ' + e.message, true);
+    }
+}
+
 async function saveLrTracking() {
     var saleId = $('f-lrsaleid').value;
+    var lrNo = $('f-lrlrno').value.trim();
     var status = $('f-lrstatus').value;
     var url = $('f-lrurl').value;
+
+    var payload = {lr_no: lrNo, lr_tracking_status: status, lr_tracking_url: url};
     await api('/api/sales/' + saleId + '/lr-tracking', {
         method: 'PUT',
-        body: JSON.stringify({lr_tracking_status: status, lr_tracking_url: url})
+        body: JSON.stringify(payload)
     });
+
+    if (lrNo && !url) {
+        try {
+            var result = await api('/api/sales/' + saleId + '/generate-tracking-url', {method: 'POST'});
+            if (result.tracking_url) {
+                await api('/api/sales/' + saleId + '/lr-tracking', {
+                    method: 'PUT',
+                    body: JSON.stringify({lr_tracking_url: result.tracking_url})
+                });
+            }
+        } catch(e) {}
+    }
+
     toast('LR tracking updated!');
     hideModal('m-lr-tracking');
     loadSales();
@@ -552,6 +594,8 @@ async function editSale(id) {
     if ($('f-slinvval')) $('f-slinvval').value = s.invoice_value || 0;
     if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
     if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
+    if ($('f-sltransporter')) $('f-sltransporter').value = s.transporter_name || '';
+    if ($('f-sllrno')) $('f-sllrno').value = s.lr_no || '';
     calcSale();
     showModal('m-sale');
 }
@@ -1190,7 +1234,9 @@ $('f-sale').addEventListener('submit', async function(e) {
         freight_amount: parseFloat($('f-slfrt').value) || 0,
         invoice_value: parseFloat($('f-slinvval').value) || 0,
         payment_status: $('f-slstatus').value,
-        payment_method: $('f-slmethod').value
+        payment_method: $('f-slmethod').value,
+        transporter_name: $('f-sltransporter') ? $('f-sltransporter').value : '',
+        lr_no: $('f-sllrno') ? $('f-sllrno').value : ''
     };
     if (id) {
         var res = await api('/api/sales/' + id, {method: 'PUT', body: JSON.stringify(data)});

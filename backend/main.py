@@ -771,6 +771,8 @@ class SaleIn(BaseModel):
     payment_status: str = "Pending"
     payment_method: str = "Cash"
     notes: str = ""
+    transporter_name: str = ""
+    lr_no: str = ""
 
 
 class ExpenseIn(BaseModel):
@@ -1689,6 +1691,8 @@ def update_sale(sid: int, inp: SaleIn):
         s.payment_method = inp.payment_method
         s.invoice_value = inp.invoice_value or total
         s.notes = inp.notes
+        s.transporter_name = inp.transporter_name or s.transporter_name or ""
+        s.lr_no = inp.lr_no or s.lr_no or ""
 
         db.commit()
         return {"message": "Sale updated", "total": total}
@@ -1704,8 +1708,12 @@ def update_lr_tracking(sid: int, body: dict):
         s = db.query(Sale).filter(Sale.id == sid).first()
         if not s:
             raise HTTPException(404, "Sale not found")
-        s.lr_tracking_status = body.get("lr_tracking_status", s.lr_tracking_status or "")
-        s.lr_tracking_url = body.get("lr_tracking_url", s.lr_tracking_url or "")
+        if "lr_no" in body and body["lr_no"]:
+            s.lr_no = body["lr_no"]
+        if "lr_tracking_status" in body:
+            s.lr_tracking_status = body["lr_tracking_status"]
+        if "lr_tracking_url" in body:
+            s.lr_tracking_url = body["lr_tracking_url"]
         s.lr_last_checked = datetime.utcnow()
         db.commit()
         return {"message": "LR tracking updated"}
